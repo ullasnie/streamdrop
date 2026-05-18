@@ -19,6 +19,7 @@ Use Vercel or Netlify.
 - Framework preset: Other
 - Build command: `npm run build:web`
 - Output directory: `dist`
+- The project includes `vercel.json`, so Vercel can also read these settings automatically.
 
 ### Netlify
 
