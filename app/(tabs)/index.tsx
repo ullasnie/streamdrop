@@ -621,12 +621,14 @@ export default function HomeScreen() {
         <Text style={styles.logoDrop}>Drop</Text>
       </View>
 
-      {!alertsEnabled ? (
-        <Pressable style={styles.alertBtn} onPress={scheduleFridayReminder}>
-          <Text style={styles.alertText}>Enable Friday Alerts 🔔</Text>
-        </Pressable>
-      ) : (
-        <Text style={styles.enabledText}>Friday alerts are on</Text>
+      {Platform.OS !== 'web' && (
+        !alertsEnabled ? (
+          <Pressable style={styles.alertBtn} onPress={scheduleFridayReminder}>
+            <Text style={styles.alertText}>Enable Friday Alerts 🔔</Text>
+          </Pressable>
+        ) : (
+          <Text style={styles.enabledText}>Friday alerts are on</Text>
+        )
       )}
 
       <Text style={styles.filterLabel}>Language</Text>

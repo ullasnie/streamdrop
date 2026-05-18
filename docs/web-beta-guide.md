@@ -39,9 +39,11 @@ Ask them to test:
 - Watchlist item opens details.
 - Settings feedback opens an email draft.
 
+Do not ask web beta testers to test Friday alerts. The web beta hides notification setup because iPhone Safari notification behavior is different from the future native iOS app.
+
 ## Web Limitations
 
-- Friday notifications are limited on web compared with a native iOS app.
+- Friday notifications are hidden in the web beta because they should be tested in a native iOS build.
 - Exit app behavior is native-only.
 - App icon and splash are not the same as a TestFlight build.
 

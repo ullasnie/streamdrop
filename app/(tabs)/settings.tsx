@@ -191,20 +191,22 @@ export default function SettingsScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Settings</Text>
 
-      <View style={styles.panel}>
-        <View style={styles.row}>
-          <View style={styles.rowText}>
-            <Text style={styles.label}>Friday drop alerts</Text>
-            <Text style={styles.description}>A weekly reminder for weekend watches.</Text>
+      {Platform.OS !== 'web' && (
+        <View style={styles.panel}>
+          <View style={styles.row}>
+            <View style={styles.rowText}>
+              <Text style={styles.label}>Friday drop alerts</Text>
+              <Text style={styles.description}>A weekly reminder for weekend watches.</Text>
+            </View>
+            <Switch
+              value={alertsEnabled}
+              onValueChange={toggleFridayAlerts}
+              trackColor={{ false: '#2A2E36', true: '#3A1118' }}
+              thumbColor={alertsEnabled ? '#EF233C' : '#9CA3AF'}
+            />
           </View>
-          <Switch
-            value={alertsEnabled}
-            onValueChange={toggleFridayAlerts}
-            trackColor={{ false: '#2A2E36', true: '#3A1118' }}
-            thumbColor={alertsEnabled ? '#EF233C' : '#9CA3AF'}
-          />
         </View>
-      </View>
+      )}
 
       <Text style={styles.section}>Default Language</Text>
       <FlatList
