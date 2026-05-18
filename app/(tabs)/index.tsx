@@ -91,6 +91,8 @@ const PREF_RELEASE_MONTHS_KEY = 'releaseWindowMonths';
 const TMDB_METADATA_CONCURRENCY = 6;
 const HOME_TOP_PADDING = Platform.OS === 'web' ? 28 : 60;
 const HOME_BOTTOM_PADDING = Platform.OS === 'web' ? 112 : 120;
+const FEATURED_CARD_WIDTH = Platform.OS === 'web' ? 158 : 178;
+const FEATURED_POSTER_HEIGHT = Platform.OS === 'web' ? 226 : 266;
 let genreMapCache: Record<number, string> | null = null;
 const providerCache = new Map<string, string[]>();
 const certificationCache = new Map<string, string>();
@@ -703,13 +705,16 @@ export default function HomeScreen() {
       ) : loading ? (
         renderSkeletonCards(true)
       ) : weekendMovies.length > 0 ? (
-        <FlatList
-          horizontal
-          data={weekendMovies}
-          keyExtractor={(i) => i.id.toString()}
-          renderItem={({ item }) => renderCard(item, true)}
-          showsHorizontalScrollIndicator={false}
-        />
+        <>
+          <FlatList
+            horizontal
+            data={weekendMovies}
+            keyExtractor={(i) => i.id.toString()}
+            renderItem={({ item }) => renderCard(item, true)}
+            showsHorizontalScrollIndicator={false}
+          />
+          <Text style={styles.scrollHint}>More releases below</Text>
+        </>
       ) : (
         <View style={styles.emptyPanel}>
           <Text style={styles.emptyText}>{weekendEmptyText}</Text>
@@ -804,9 +809,9 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   card: { width: 140, marginLeft: 16 },
-  featuredCard: { width: 178 },
+  featuredCard: { width: FEATURED_CARD_WIDTH },
   poster: { width: 140, height: 210, borderRadius: 10 },
-  featuredPoster: { width: 178, height: 266 },
+  featuredPoster: { width: FEATURED_CARD_WIDTH, height: FEATURED_POSTER_HEIGHT },
   title: { color: '#fff', marginTop: 6 },
   featuredTitle: { fontSize: 16, fontWeight: '700' },
   date: { color: '#EF233C', fontSize: 12 },
@@ -850,6 +855,13 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 8,
     padding: 14,
+  },
+  scrollHint: {
+    color: '#6B7280',
+    fontSize: 12,
+    fontWeight: '700',
+    marginHorizontal: 16,
+    marginTop: 10,
   },
   statePanel: {
     borderColor: '#2A2E36',
