@@ -89,6 +89,7 @@ const PREF_PLATFORM_KEY = 'preferredPlatform';
 const PREF_GENRE_KEY = 'preferredGenre';
 const PREF_RELEASE_MONTHS_KEY = 'releaseWindowMonths';
 const TMDB_METADATA_CONCURRENCY = 6;
+const RECOMMENDATION_MAX_AGE_YEARS = 3;
 const HOME_TOP_PADDING = Platform.OS === 'web' ? 28 : 60;
 const HOME_BOTTOM_PADDING = Platform.OS === 'web' ? 112 : 120;
 const FEATURED_CARD_WIDTH = Platform.OS === 'web' ? 158 : 178;
@@ -179,6 +180,22 @@ const formatRecommendationSource = (items: SavedMovie[]) => {
   if (titles.length === 2) return `${titles[0]} and ${titles[1]}`;
 
   return `${titles[0]}, ${titles[1]} +${titles.length - 2}`;
+};
+
+const isRecentRecommendation = (movie: Movie) => {
+  if (!movie.release_date) return false;
+
+  const cutoff = new Date();
+  cutoff.setFullYear(cutoff.getFullYear() - RECOMMENDATION_MAX_AGE_YEARS);
+
+  const today = new Date();
+  const releaseDate = new Date(`${movie.release_date}T00:00:00`);
+
+  return (
+    !Number.isNaN(releaseDate.getTime()) &&
+    releaseDate >= cutoff &&
+    releaseDate <= today
+  );
 };
 
 const getOttProviders = async (movieId: number, region: string) => {
@@ -333,6 +350,7 @@ export default function HomeScreen() {
       const candidates = similarResults
         .flat()
         .filter((m: Movie) => m.original_language === lang)
+        .filter(isRecentRecommendation)
         .filter((m: Movie) => !genreId || m.genre_ids?.includes(genreId))
         .filter((m: Movie) => !savedIds.has(m.id))
         .filter(

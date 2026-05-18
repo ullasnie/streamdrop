@@ -3,10 +3,11 @@ import axios from 'axios';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
-    Alert,
-    Image,
-    ScrollView,
-    StyleSheet,
+  Alert,
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
     Text,
     TouchableOpacity,
     View,
@@ -15,6 +16,7 @@ import {
 import { emitWatchlistUpdated } from '../constants/watchlist-events';
 
 const TMDB_API_KEY = '92b45ae5994028d3786552aad05e5a4d';
+const DETAILS_POSTER_WIDTH = Platform.OS === 'web' ? 260 : 300;
 
 const formatDisplayDate = (value: string) => {
   if (!value) return '';
@@ -159,10 +161,13 @@ export default function DetailsScreen() {
 
       <ScrollView style={styles.scroll}>
         {posterPath ? (
-          <Image
-            source={{ uri: `https://image.tmdb.org/t/p/w500${posterPath}` }}
-            style={styles.poster}
-          />
+          <View style={styles.posterWrap}>
+            <Image
+              source={{ uri: `https://image.tmdb.org/t/p/w500${posterPath}` }}
+              style={styles.poster}
+              resizeMode="cover"
+            />
+          </View>
         ) : null}
 
         <View style={styles.content}>
@@ -233,8 +238,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   poster: {
-    width: '100%',
-    height: 500,
+    borderRadius: 12,
+    height: DETAILS_POSTER_WIDTH * 1.5,
+    width: DETAILS_POSTER_WIDTH,
+  },
+  posterWrap: {
+    alignItems: 'center',
+    backgroundColor: '#0B0D12',
+    paddingBottom: 16,
+    paddingTop: 86,
   },
   content: {
     padding: 20,

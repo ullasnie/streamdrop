@@ -14,6 +14,7 @@ import {
 import { emitWatchlistUpdated } from '../../constants/watchlist-events';
 
 const SCREEN_TOP_PADDING = Platform.OS === 'web' ? 34 : 70;
+const POSTER_WIDTH = Platform.OS === 'web' ? 180 : 210;
 
 type SavedMovie = {
   id?: number; // optional for old data
@@ -105,12 +106,15 @@ export default function WatchlistScreen() {
             <View style={styles.card}>
               <Pressable onPress={() => openDetails(item)}>
                 {item.posterPath ? (
-                  <Image
-                    source={{
-                      uri: `https://image.tmdb.org/t/p/w500${item.posterPath}`,
-                    }}
-                    style={styles.poster}
-                  />
+                  <View style={styles.posterWrap}>
+                    <Image
+                      source={{
+                        uri: `https://image.tmdb.org/t/p/w500${item.posterPath}`,
+                      }}
+                      style={styles.poster}
+                      resizeMode="cover"
+                    />
+                  </View>
                 ) : null}
 
                 <Text style={styles.title}>{item.title}</Text>
@@ -149,12 +153,22 @@ const styles = StyleSheet.create({
     marginTop: 50,
   },
   card: {
-    margin: 16,
+    borderBottomColor: '#1A1D23',
+    borderBottomWidth: 1,
+    marginHorizontal: 16,
+    paddingBottom: 18,
+    paddingTop: 2,
   },
   poster: {
-    width: '100%',
-    height: 220,
+    height: POSTER_WIDTH * 1.5,
+    width: POSTER_WIDTH,
     borderRadius: 10,
+  },
+  posterWrap: {
+    alignItems: 'center',
+    backgroundColor: '#12151C',
+    borderRadius: 12,
+    padding: 14,
   },
   title: {
     color: '#FFFFFF',
