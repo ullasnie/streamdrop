@@ -17,7 +17,7 @@ import {
   View,
 } from 'react-native';
 
-const PREF_LANGUAGE_KEY = 'preferredLanguage';
+const PREF_LANGUAGE_KEY = 'preferredLanguageV2';
 const PREF_PLATFORM_KEY = 'preferredPlatform';
 const PREF_GENRE_KEY = 'preferredGenre';
 const PREF_RELEASE_MONTHS_KEY = 'releaseWindowMonths';

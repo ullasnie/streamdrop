@@ -1,0 +1,7 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#0F1115"/>
+  <text x="150" y="304" fill="#FFFFFF" font-family="Arial Black, Arial, Helvetica, sans-serif" font-size="80" font-weight="900" letter-spacing="0">Stream</text>
+  <text x="470" y="304" fill="#EF233C" font-family="Arial Black, Arial, Helvetica, sans-serif" font-size="80" font-weight="900" font-style="italic" letter-spacing="0">Drop</text>
+  <rect x="154" y="350" width="650" height="8" rx="4" fill="#EF233C"/>
+  <rect x="154" y="380" width="300" height="8" rx="4" fill="#3A1118"/>
+</svg>

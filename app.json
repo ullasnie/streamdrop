@@ -4,7 +4,7 @@
     "slug": "streamdrop",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/streamdrop-logo.png",
+    "icon": "./assets/images/streamdrop-app-icon.png",
     "scheme": "streamdrop",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -16,7 +16,7 @@
       "package": "com.ullas.streamdrop",
       "adaptiveIcon": {
         "backgroundColor": "#0F1115",
-        "foregroundImage": "./assets/images/streamdrop-logo.png",
+        "foregroundImage": "./assets/images/streamdrop-app-icon.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
@@ -32,7 +32,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/streamdrop-logo.png",
+          "image": "./assets/images/streamdrop-app-icon.png",
           "imageWidth": 180,
           "resizeMode": "contain",
           "backgroundColor": "#0F1115",
