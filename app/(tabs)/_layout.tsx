@@ -2,11 +2,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 
 import { listenForWatchlistUpdates } from '../../constants/watchlist-events';
 
 export default function TabLayout() {
   const [watchlistCount, setWatchlistCount] = useState(0);
+  const isWeb = Platform.OS === 'web';
 
   const loadWatchlistCount = useCallback(async () => {
     try {
@@ -36,22 +38,22 @@ export default function TabLayout() {
           backgroundColor: '#0F1115',
           borderTopColor: '#1A1D23',
           borderTopWidth: 1,
-          height: 76,
+          height: isWeb ? 92 : 76,
           paddingHorizontal: 18,
-          paddingTop: 10,
-          paddingBottom: 14,
+          paddingTop: isWeb ? 8 : 10,
+          paddingBottom: isWeb ? 24 : 14,
         },
         tabBarItemStyle: {
-          borderRadius: 22,
+          borderRadius: 8,
           marginHorizontal: 6,
         },
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '700',
-          marginTop: 2,
+          marginTop: 0,
         },
         tabBarIconStyle: {
-          marginTop: 2,
+          marginTop: 0,
         },
         tabBarActiveBackgroundColor: '#3A1118',
         tabBarActiveTintColor: '#EF233C',

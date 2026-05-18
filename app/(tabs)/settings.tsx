@@ -24,6 +24,7 @@ const PREF_RELEASE_MONTHS_KEY = 'releaseWindowMonths';
 const ALERTS_ENABLED_KEY = 'alertsEnabled';
 const FRIDAY_NOTIFICATION_ID_KEY = 'fridayNotificationId';
 const FEEDBACK_EMAIL = 'ullasnie@gmail.com';
+const SCREEN_TOP_PADDING = Platform.OS === 'web' ? 34 : 70;
 const tmdbLogo = require('../../assets/images/tmdb-logo.svg');
 
 const languages = [
@@ -372,7 +373,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0F1115',
-    paddingTop: 70,
+    paddingTop: SCREEN_TOP_PADDING,
   },
   content: {
     paddingBottom: 120,

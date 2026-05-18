@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import {
     FlatList,
     Image,
+    Platform,
     Pressable,
     StyleSheet,
     Text,
@@ -11,6 +12,8 @@ import {
 } from 'react-native';
 
 import { emitWatchlistUpdated } from '../../constants/watchlist-events';
+
+const SCREEN_TOP_PADDING = Platform.OS === 'web' ? 34 : 70;
 
 type SavedMovie = {
   id?: number; // optional for old data
@@ -132,7 +135,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0F1115',
-    paddingTop: 70,
+    paddingTop: SCREEN_TOP_PADDING,
   },
   header: {
     color: '#FFFFFF',

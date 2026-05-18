@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   FlatList,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -88,6 +89,8 @@ const PREF_PLATFORM_KEY = 'preferredPlatform';
 const PREF_GENRE_KEY = 'preferredGenre';
 const PREF_RELEASE_MONTHS_KEY = 'releaseWindowMonths';
 const TMDB_METADATA_CONCURRENCY = 6;
+const HOME_TOP_PADDING = Platform.OS === 'web' ? 28 : 60;
+const HOME_BOTTOM_PADDING = Platform.OS === 'web' ? 112 : 120;
 let genreMapCache: Record<number, string> | null = null;
 const providerCache = new Map<string, string[]>();
 const certificationCache = new Map<string, string>();
@@ -755,8 +758,8 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0F1115', paddingTop: 60 },
-  content: { paddingBottom: 120 },
+  container: { flex: 1, backgroundColor: '#0F1115', paddingTop: HOME_TOP_PADDING },
+  content: { paddingBottom: HOME_BOTTOM_PADDING },
   logo: {
     flexDirection: 'row',
     alignItems: 'baseline',
