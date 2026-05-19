@@ -6,7 +6,6 @@ import { useCallback, useState } from 'react';
 import {
   Alert,
   BackHandler,
-  FlatList,
   Linking,
   Platform,
   Pressable,
@@ -63,12 +62,15 @@ const releaseWindows = [
   { label: '6 Months', value: 6 },
 ];
 
+type ActiveSetting = 'language' | 'platform' | 'genre' | 'window' | null;
+
 export default function SettingsScreen() {
   const [alertsEnabled, setAlertsEnabled] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState('en');
   const [selectedPlatform, setSelectedPlatform] = useState('all');
   const [selectedGenre, setSelectedGenre] = useState('all');
   const [releaseWindowMonths, setReleaseWindowMonths] = useState(3);
+  const [activeSetting, setActiveSetting] = useState<ActiveSetting>(null);
 
   const loadSettings = useCallback(async () => {
     const [alertVal, languageVal, platformVal, genreVal, monthsVal] =
@@ -144,21 +146,25 @@ export default function SettingsScreen() {
 
   const selectLanguage = async (code: string) => {
     setSelectedLanguage(code);
+    setActiveSetting(null);
     await AsyncStorage.setItem(PREF_LANGUAGE_KEY, code);
   };
 
   const selectPlatform = async (key: string) => {
     setSelectedPlatform(key);
+    setActiveSetting(null);
     await AsyncStorage.setItem(PREF_PLATFORM_KEY, key);
   };
 
   const selectGenre = async (key: string) => {
     setSelectedGenre(key);
+    setActiveSetting(null);
     await AsyncStorage.setItem(PREF_GENRE_KEY, key);
   };
 
   const selectReleaseWindow = async (months: number) => {
     setReleaseWindowMonths(months);
+    setActiveSetting(null);
     await AsyncStorage.setItem(PREF_RELEASE_MONTHS_KEY, String(months));
   };
 
@@ -187,6 +193,84 @@ export default function SettingsScreen() {
     Linking.openURL(`mailto:${FEEDBACK_EMAIL}?subject=${subject}&body=${body}`);
   };
 
+  const languageLabel =
+    languages.find((item) => item.code === selectedLanguage)?.label || 'English';
+  const platformLabel =
+    platforms.find((item) => item.key === selectedPlatform)?.label || 'All';
+  const genreLabel =
+    genres.find((item) => item.key === selectedGenre)?.label || 'All';
+  const releaseWindowLabel =
+    releaseWindows.find((item) => item.value === releaseWindowMonths)?.label ||
+    '3 Months';
+
+  const settingOptions =
+    activeSetting === 'language'
+      ? languages.map((item) => ({
+          key: item.code,
+          label: item.label,
+          selected: selectedLanguage === item.code,
+          onPress: () => selectLanguage(item.code),
+        }))
+      : activeSetting === 'platform'
+        ? platforms.map((item) => ({
+            key: item.key,
+            label: item.label,
+            selected: selectedPlatform === item.key,
+            onPress: () => selectPlatform(item.key),
+          }))
+        : activeSetting === 'genre'
+          ? genres.map((item) => ({
+              key: item.key,
+              label: item.label,
+              selected: selectedGenre === item.key,
+              onPress: () => selectGenre(item.key),
+            }))
+          : activeSetting === 'window'
+            ? releaseWindows.map((item) => ({
+                key: String(item.value),
+                label: item.label,
+                selected: releaseWindowMonths === item.value,
+                onPress: () => selectReleaseWindow(item.value),
+              }))
+            : [];
+
+  const renderSettingCard = (
+    label: string,
+    value: string,
+    setting: Exclude<ActiveSetting, null>
+  ) => {
+    const selected = activeSetting === setting;
+
+    return (
+      <Pressable
+        style={[styles.settingCard, selected && styles.settingCardActive]}
+        onPress={() => setActiveSetting(selected ? null : setting)}
+      >
+        <View style={styles.settingCardTopRow}>
+          <Text style={styles.settingCardLabel}>{label}</Text>
+          <Text
+            style={[
+              styles.settingChevron,
+              selected && styles.settingChevronActive,
+            ]}
+          >
+            {selected ? '⌃' : '⌄'}
+          </Text>
+        </View>
+        <Text
+          style={[
+            styles.settingCardValue,
+            selected && styles.settingCardValueActive,
+          ]}
+          numberOfLines={1}
+        >
+          {value}
+        </Text>
+        <Text style={styles.settingCardHint}>Tap to change</Text>
+      </Pressable>
+    );
+  };
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Settings</Text>
@@ -208,109 +292,51 @@ export default function SettingsScreen() {
         </View>
       )}
 
-      <Text style={styles.section}>Default Language</Text>
-      <FlatList
-        horizontal
-        data={languages}
-        keyExtractor={(item) => item.code}
-        contentContainerStyle={styles.chipListContent}
-        showsHorizontalScrollIndicator={false}
-        renderItem={({ item }) => (
-          <Pressable
-            style={[
-              styles.chip,
-              selectedLanguage === item.code && styles.chipSelected,
-            ]}
-            onPress={() => selectLanguage(item.code)}
-          >
-            <Text
-              style={[
-                styles.chipText,
-                selectedLanguage === item.code && styles.chipTextSelected,
-              ]}
-            >
-              {item.label}
-            </Text>
-          </Pressable>
-        )}
-      />
-
-      <Text style={styles.section}>Default Streaming Filter</Text>
-      <FlatList
-        horizontal
-        data={platforms}
-        keyExtractor={(item) => item.key}
-        contentContainerStyle={styles.chipListContent}
-        showsHorizontalScrollIndicator={false}
-        renderItem={({ item }) => (
-          <Pressable
-            style={[
-              styles.chip,
-              selectedPlatform === item.key && styles.chipSelected,
-            ]}
-            onPress={() => selectPlatform(item.key)}
-          >
-            <Text
-              style={[
-                styles.chipText,
-                selectedPlatform === item.key && styles.chipTextSelected,
-              ]}
-            >
-              {item.label}
-            </Text>
-          </Pressable>
-        )}
-      />
-
-      <Text style={styles.section}>Default Genre</Text>
-      <FlatList
-        horizontal
-        data={genres}
-        keyExtractor={(item) => item.key}
-        contentContainerStyle={styles.chipListContent}
-        showsHorizontalScrollIndicator={false}
-        renderItem={({ item }) => (
-          <Pressable
-            style={[
-              styles.chip,
-              selectedGenre === item.key && styles.chipSelected,
-            ]}
-            onPress={() => selectGenre(item.key)}
-          >
-            <Text
-              style={[
-                styles.chipText,
-                selectedGenre === item.key && styles.chipTextSelected,
-              ]}
-            >
-              {item.label}
-            </Text>
-          </Pressable>
-        )}
-      />
-
-      <Text style={styles.section}>Recent Releases Window</Text>
-      <View style={styles.optionGroup}>
-        {releaseWindows.map((item) => (
-          <Pressable
-            key={item.value}
-            style={[
-              styles.option,
-              releaseWindowMonths === item.value && styles.optionSelected,
-            ]}
-            onPress={() => selectReleaseWindow(item.value)}
-          >
-            <Text
-              style={[
-                styles.optionText,
-                releaseWindowMonths === item.value && styles.optionTextSelected,
-              ]}
-            >
-              {item.label}
-            </Text>
-          </Pressable>
-        ))}
+      <Text style={styles.section}>Defaults</Text>
+      <View style={styles.defaultsGrid}>
+        {renderSettingCard('Default Language', languageLabel, 'language')}
+        {renderSettingCard('Default Streaming', platformLabel, 'platform')}
+        {renderSettingCard('Default Genre', genreLabel, 'genre')}
+        {renderSettingCard('Release Window', releaseWindowLabel, 'window')}
       </View>
+
+      {activeSetting && (
+        <View style={styles.settingPanel}>
+          <View style={styles.settingPanelHeader}>
+            <Text style={styles.settingPanelTitle}>
+              {activeSetting === 'platform'
+                ? 'Default Streaming'
+                : activeSetting === 'window'
+                  ? 'Release Window'
+                  : `Default ${activeSetting}`}
+            </Text>
+            <Pressable onPress={() => setActiveSetting(null)}>
+              <Text style={styles.settingPanelClose}>Done</Text>
+            </Pressable>
+          </View>
+          <View style={styles.settingOptionGrid}>
+            {settingOptions.map((item) => (
+              <Pressable
+                key={item.key}
+                style={[
+                  styles.chip,
+                  item.selected && styles.chipSelected,
+                ]}
+                onPress={item.onPress}
+              >
+                <Text
+                  style={[
+                    styles.chipText,
+                    item.selected && styles.chipTextSelected,
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )}
 
       <Text style={styles.section}>Credits</Text>
       <View style={styles.creditsPanel}>
@@ -424,9 +450,94 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textTransform: 'uppercase',
   },
-  chipListContent: {
-    paddingHorizontal: 16,
-    paddingBottom: 20,
+  defaultsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginHorizontal: 16,
+    marginBottom: 14,
+  },
+  settingCard: {
+    backgroundColor: '#12151C',
+    borderColor: '#2A2E36',
+    borderRadius: 8,
+    borderWidth: 1,
+    minHeight: 78,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    width: '48%',
+  },
+  settingCardActive: {
+    backgroundColor: '#3A1118',
+    borderColor: '#EF233C',
+  },
+  settingCardTopRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  settingCardLabel: {
+    color: '#6B7280',
+    flex: 1,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    paddingRight: 8,
+    textTransform: 'uppercase',
+  },
+  settingChevron: {
+    color: '#EF233C',
+    fontSize: 16,
+    fontWeight: '900',
+    lineHeight: 16,
+  },
+  settingChevronActive: {
+    color: '#FFFFFF',
+  },
+  settingCardValue: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+    marginTop: 6,
+  },
+  settingCardValueActive: {
+    color: '#EF233C',
+  },
+  settingCardHint: {
+    color: '#6B7280',
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  settingPanel: {
+    backgroundColor: '#12151C',
+    borderColor: '#242832',
+    borderRadius: 8,
+    borderWidth: 1,
+    marginHorizontal: 16,
+    marginBottom: 22,
+    padding: 12,
+  },
+  settingPanelHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  settingPanelTitle: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  settingPanelClose: {
+    color: '#EF233C',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  settingOptionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
   },
   chip: {
     alignItems: 'center',
@@ -435,7 +546,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     height: 44,
     justifyContent: 'center',
-    marginRight: 10,
+    minWidth: 84,
     paddingHorizontal: 18,
   },
   chipSelected: {
@@ -448,32 +559,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   chipTextSelected: {
-    color: '#FFFFFF',
-  },
-  optionGroup: {
-    flexDirection: 'row',
-    gap: 10,
-    marginHorizontal: 16,
-  },
-  option: {
-    alignItems: 'center',
-    borderColor: '#2A2E36',
-    borderRadius: 8,
-    borderWidth: 1,
-    flex: 1,
-    height: 52,
-    justifyContent: 'center',
-  },
-  optionSelected: {
-    backgroundColor: '#3A1118',
-    borderColor: '#EF233C',
-  },
-  optionText: {
-    color: '#9CA3AF',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  optionTextSelected: {
     color: '#FFFFFF',
   },
   creditsPanel: {

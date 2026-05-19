@@ -37,6 +37,8 @@ type SavedMovie = {
   overview: string;
 };
 
+type ActiveFilter = 'language' | 'platform' | 'genre' | null;
+
 const TMDB_API_KEY = '92b45ae5994028d3786552aad05e5a4d';
 
 const languages = [
@@ -279,6 +281,7 @@ export default function HomeScreen() {
   const [selectedLanguage, setSelectedLanguage] = useState('en');
   const [selectedPlatform, setSelectedPlatform] = useState('all');
   const [selectedGenre, setSelectedGenre] = useState('all');
+  const [activeFilter, setActiveFilter] = useState<ActiveFilter>(null);
   const [releaseWindowMonths, setReleaseWindowMonths] = useState(3);
 
   const [loading, setLoading] = useState(true);
@@ -504,12 +507,20 @@ export default function HomeScreen() {
 
   const handleLanguageSelect = async (code: string) => {
     setSelectedLanguage(code);
+    setActiveFilter(null);
     await AsyncStorage.setItem(PREF_LANGUAGE_KEY, code);
   };
 
   const handlePlatformSelect = async (key: string) => {
     setSelectedPlatform(key);
+    setActiveFilter(null);
     await AsyncStorage.setItem(PREF_PLATFORM_KEY, key);
+  };
+
+  const handleGenreSelect = async (key: string) => {
+    setSelectedGenre(key);
+    setActiveFilter(null);
+    await AsyncStorage.setItem(PREF_GENRE_KEY, key);
   };
 
   const refreshReleases = () => {
@@ -599,6 +610,29 @@ export default function HomeScreen() {
   const languageLabel =
     languages.find((language) => language.code === selectedLanguage)?.label ||
     'selected language';
+  const filterOptions =
+    activeFilter === 'language'
+      ? languages.map((item) => ({
+          key: item.code,
+          label: item.label,
+          selected: selectedLanguage === item.code,
+          onPress: () => handleLanguageSelect(item.code),
+        }))
+      : activeFilter === 'platform'
+        ? platforms.map((item) => ({
+            key: item.key,
+            label: item.label,
+            selected: selectedPlatform === item.key,
+            onPress: () => handlePlatformSelect(item.key),
+          }))
+        : activeFilter === 'genre'
+          ? genres.map((item) => ({
+              key: item.key,
+              label: item.label,
+              selected: selectedGenre === item.key,
+              onPress: () => handleGenreSelect(item.key),
+            }))
+          : [];
   const releaseSectionTitle =
     selectedGenre === 'all'
       ? `${platformLabel} Releases: Last ${releaseWindowMonths} Months`
@@ -611,6 +645,45 @@ export default function HomeScreen() {
     selectedGenre === 'all'
       ? `No ${languageLabel} OTT releases found for this window.`
       : `No ${languageLabel} ${genreLabel.toLowerCase()} releases found for this window.`;
+
+  const renderFilterButton = (
+    label: string,
+    value: string,
+    filter: Exclude<ActiveFilter, null>
+  ) => {
+    const selected = activeFilter === filter;
+
+    return (
+      <Pressable
+        style={[styles.filterButton, selected && styles.filterButtonActive]}
+        onPress={() => setActiveFilter(selected ? null : filter)}
+      >
+        <View style={styles.filterButtonTopRow}>
+          <Text style={styles.filterButtonLabel}>{label}</Text>
+          <Text
+            style={[
+              styles.filterChevron,
+              selected && styles.filterChevronActive,
+            ]}
+          >
+            {selected ? '⌃' : '⌄'}
+          </Text>
+        </View>
+        <View style={styles.filterButtonValueRow}>
+          <Text
+            style={[
+              styles.filterButtonValue,
+              selected && styles.filterButtonValueActive,
+            ]}
+            numberOfLines={1}
+          >
+            {value}
+          </Text>
+        </View>
+        <Text style={styles.filterButtonHint}>Tap to change</Text>
+      </Pressable>
+    );
+  };
 
   const renderSkeletonCards = (featured = false) => (
     <View style={styles.skeletonRow}>
@@ -649,61 +722,45 @@ export default function HomeScreen() {
         )
       )}
 
-      <Text style={styles.filterLabel}>Language</Text>
-      <FlatList
-        horizontal
-        data={languages}
-        style={[styles.chipList, styles.languageChipList]}
-        contentContainerStyle={styles.chipListContent}
-        keyExtractor={(i) => i.code}
-        showsHorizontalScrollIndicator={false}
-        renderItem={({ item }) => (
-          <Pressable
-            style={[
-              styles.chip,
-              selectedLanguage === item.code && styles.chipSelected,
-            ]}
-            onPress={() => handleLanguageSelect(item.code)}
-          >
-            <Text
-              style={[
-                styles.chipText,
-                selectedLanguage === item.code && styles.chipTextSelected,
-              ]}
-            >
-              {item.label}
-            </Text>
-          </Pressable>
-        )}
-      />
+      <View style={styles.filterSummaryRow}>
+        {renderFilterButton('Language', languageLabel, 'language')}
+        {renderFilterButton('Streaming', platformLabel, 'platform')}
+        {renderFilterButton('Genre', genreLabel, 'genre')}
+      </View>
 
-      <Text style={styles.filterLabel}>Streaming</Text>
-      <FlatList
-        horizontal
-        data={platforms}
-        style={styles.chipList}
-        contentContainerStyle={styles.chipListContent}
-        keyExtractor={(i) => i.key}
-        showsHorizontalScrollIndicator={false}
-        renderItem={({ item }) => (
-          <Pressable
-            style={[
-              styles.chip,
-              selectedPlatform === item.key && styles.chipSelected,
-            ]}
-            onPress={() => handlePlatformSelect(item.key)}
-          >
-            <Text
-              style={[
-                styles.chipText,
-                selectedPlatform === item.key && styles.chipTextSelected,
-              ]}
-            >
-              {item.label}
+      {activeFilter && (
+        <View style={styles.filterPanel}>
+          <View style={styles.filterPanelHeader}>
+            <Text style={styles.filterPanelTitle}>
+              {activeFilter === 'platform' ? 'Streaming' : activeFilter}
             </Text>
-          </Pressable>
-        )}
-      />
+            <Pressable onPress={() => setActiveFilter(null)}>
+              <Text style={styles.filterPanelClose}>Done</Text>
+            </Pressable>
+          </View>
+          <View style={styles.filterOptionGrid}>
+            {filterOptions.map((item) => (
+              <Pressable
+                key={item.key}
+                style={[
+                  styles.chip,
+                  item.selected && styles.chipSelected,
+                ]}
+                onPress={item.onPress}
+              >
+                <Text
+                  style={[
+                    styles.chipText,
+                    item.selected && styles.chipTextSelected,
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )}
 
       <View style={styles.sectionHeader}>
         <View>
@@ -944,24 +1001,95 @@ const styles = StyleSheet.create({
     marginTop: 6,
     width: '52%',
   },
-  filterLabel: {
+  filterSummaryRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginHorizontal: 16,
+    marginBottom: 12,
+  },
+  filterButton: {
+    backgroundColor: '#12151C',
+    borderColor: '#2A2E36',
+    borderRadius: 8,
+    borderWidth: 1,
+    flex: 1,
+    minHeight: 76,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  filterButtonActive: {
+    backgroundColor: '#3A1118',
+    borderColor: '#EF233C',
+  },
+  filterButtonTopRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  filterButtonLabel: {
     color: '#6B7280',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-    marginLeft: 16,
-    marginBottom: 6,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.6,
     textTransform: 'uppercase',
   },
-  chipList: {
-    flexGrow: 0,
-    height: 48,
+  filterChevron: {
+    color: '#EF233C',
+    fontSize: 16,
+    fontWeight: '900',
+    lineHeight: 16,
   },
-  languageChipList: {
+  filterChevronActive: {
+    color: '#FFFFFF',
+  },
+  filterButtonValueRow: {
+    marginTop: 5,
+  },
+  filterButtonValue: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  filterButtonValueActive: {
+    color: '#EF233C',
+  },
+  filterButtonHint: {
+    color: '#6B7280',
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  filterPanel: {
+    backgroundColor: '#12151C',
+    borderColor: '#242832',
+    borderRadius: 8,
+    borderWidth: 1,
+    marginHorizontal: 16,
+    marginBottom: 14,
+    padding: 12,
+  },
+  filterPanelHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     marginBottom: 10,
   },
-  chipListContent: {
-    paddingHorizontal: 16,
+  filterPanelTitle: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '900',
+    textTransform: 'capitalize',
+  },
+  filterPanelClose: {
+    color: '#EF233C',
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  filterOptionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
   },
   chip: {
     paddingHorizontal: 18,
@@ -971,7 +1099,7 @@ const styles = StyleSheet.create({
     borderColor: '#2A2E36',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    minWidth: 84,
   },
   chipSelected: {
     backgroundColor: '#3A1118',
