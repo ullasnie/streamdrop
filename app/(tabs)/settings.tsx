@@ -16,7 +16,7 @@ import {
   View,
 } from 'react-native';
 
-const PREF_LANGUAGE_KEY = 'preferredLanguageV2';
+const PREF_LANGUAGE_KEY = 'preferredLanguageV3';
 const PREF_PLATFORM_KEY = 'preferredPlatform';
 const PREF_GENRE_KEY = 'preferredGenre';
 const PREF_RELEASE_MONTHS_KEY = 'releaseWindowMonths';
@@ -27,6 +27,7 @@ const SCREEN_TOP_PADDING = Platform.OS === 'web' ? 34 : 70;
 const tmdbLogo = require('../../assets/images/tmdb-logo.svg');
 
 const languages = [
+  { label: 'All', code: 'all' },
   { label: 'English', code: 'en' },
   { label: 'Hindi', code: 'hi' },
   { label: 'Tamil', code: 'ta' },
@@ -66,7 +67,7 @@ type ActiveSetting = 'language' | 'platform' | 'genre' | 'window' | null;
 
 export default function SettingsScreen() {
   const [alertsEnabled, setAlertsEnabled] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState('en');
+  const [selectedLanguage, setSelectedLanguage] = useState('all');
   const [selectedPlatform, setSelectedPlatform] = useState('all');
   const [selectedGenre, setSelectedGenre] = useState('all');
   const [releaseWindowMonths, setReleaseWindowMonths] = useState(3);
@@ -194,7 +195,7 @@ export default function SettingsScreen() {
   };
 
   const languageLabel =
-    languages.find((item) => item.code === selectedLanguage)?.label || 'English';
+    languages.find((item) => item.code === selectedLanguage)?.label || 'All';
   const platformLabel =
     platforms.find((item) => item.key === selectedPlatform)?.label || 'All';
   const genreLabel =

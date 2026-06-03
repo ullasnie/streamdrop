@@ -25,6 +25,7 @@ type Movie = {
   original_language?: string;
   genre_ids?: number[];
   genreNames?: string[];
+  ottReleaseDate?: string;
   providerNames?: string[];
   certification?: string;
 };
@@ -38,10 +39,12 @@ type SavedMovie = {
 };
 
 type ActiveFilter = 'language' | 'platform' | 'genre' | null;
+type DateRange = { startDate: string; endDate: string };
 
 const TMDB_API_KEY = '92b45ae5994028d3786552aad05e5a4d';
 
 const languages = [
+  { label: 'All', code: 'all' },
   { label: 'English', code: 'en' },
   { label: 'Hindi', code: 'hi' },
   { label: 'Tamil', code: 'ta' },
@@ -51,14 +54,40 @@ const languages = [
 ];
 
 const platforms = [
-  { label: 'All', key: 'all', providerId: null },
-  { label: 'Netflix', key: 'netflix', providerId: 8 },
-  { label: 'Prime', key: 'prime', providerId: 9 },
-  { label: 'Disney+', key: 'disney', providerId: 337 },
-  { label: 'Hulu', key: 'hulu', providerId: 15 },
-  { label: 'Hotstar', key: 'hotstar', providerId: 619 },
-  { label: 'Apple TV', key: 'apple-tv', providerId: 350 },
-  { label: 'HBO Max', key: 'hbo-max', providerId: 1899 },
+  { label: 'All', key: 'all', providerId: null, providerNames: [] },
+  { label: 'Netflix', key: 'netflix', providerId: 8, providerNames: ['Netflix'] },
+  {
+    label: 'Prime',
+    key: 'prime',
+    providerId: 9,
+    providerIdsByRegion: { IN: [119], US: [9] },
+    providerNames: ['Amazon Prime Video', 'Prime Video'],
+  },
+  {
+    label: 'Disney+',
+    key: 'disney',
+    providerId: 337,
+    providerNames: ['Disney Plus', 'Disney+'],
+  },
+  { label: 'Hulu', key: 'hulu', providerId: 15, providerNames: ['Hulu'] },
+  {
+    label: 'Hotstar',
+    key: 'hotstar',
+    providerId: 619,
+    providerNames: ['Hotstar', 'Disney+ Hotstar'],
+  },
+  {
+    label: 'Apple TV',
+    key: 'apple-tv',
+    providerId: 350,
+    providerNames: ['Apple TV', 'Apple TV Plus', 'Apple TV Amazon Channel'],
+  },
+  {
+    label: 'HBO Max',
+    key: 'hbo-max',
+    providerId: 1899,
+    providerNames: ['Max', 'HBO Max', 'Max Amazon Channel'],
+  },
 ];
 
 const genres = [
@@ -86,9 +115,12 @@ const formatDisplayDate = (value: string) => {
   });
 };
 
-const PREF_LANGUAGE_KEY = 'preferredLanguageV2';
+const PREF_LANGUAGE_KEY = 'preferredLanguageV3';
 const PREF_PLATFORM_KEY = 'preferredPlatform';
 const PREF_GENRE_KEY = 'preferredGenre';
+const PREF_HOME_LANGUAGES_KEY = 'homeSelectedLanguagesV2';
+const PREF_HOME_PLATFORMS_KEY = 'homeSelectedPlatformsV1';
+const PREF_HOME_GENRES_KEY = 'homeSelectedGenresV1';
 const PREF_RELEASE_MONTHS_KEY = 'releaseWindowMonths';
 const TMDB_METADATA_CONCURRENCY = 6;
 const RECOMMENDATION_MAX_AGE_YEARS = 3;
@@ -96,9 +128,13 @@ const HOME_TOP_PADDING = Platform.OS === 'web' ? 28 : 60;
 const HOME_BOTTOM_PADDING = Platform.OS === 'web' ? 112 : 120;
 const FEATURED_CARD_WIDTH = Platform.OS === 'web' ? 158 : 178;
 const FEATURED_POSTER_HEIGHT = Platform.OS === 'web' ? 226 : 266;
+const TMDB_OTT_RELEASE_TYPES = [4, 6];
 let genreMapCache: Record<number, string> | null = null;
 const providerCache = new Map<string, string[]>();
-const certificationCache = new Map<string, string>();
+const releaseInfoCache = new Map<
+  string,
+  { certification: string; ottReleaseDates: string[] }
+>();
 
 const mapWithConcurrency = async <T, R>(
   items: T[],
@@ -144,8 +180,75 @@ const getWeekendRange = () => {
 
 const getRegionCode = (lang: string) => (lang === 'en' ? 'US' : 'IN');
 
-const getProviderId = (key: string) =>
-  platforms.find((p) => p.key === key)?.providerId;
+const getSelectedLanguageCodes = (selected: string[]) =>
+  selected.includes('all')
+    ? languages.filter((item) => item.code !== 'all').map((item) => item.code)
+    : selected;
+
+const getProviderIds = (key: string, region: string) => {
+  const platform = platforms.find((p) => p.key === key);
+  if (!platform || platform.key === 'all') return [];
+
+  const regionProviderIds =
+    'providerIdsByRegion' in platform
+      ? platform.providerIdsByRegion?.[region as keyof typeof platform.providerIdsByRegion]
+      : undefined;
+
+  if (regionProviderIds?.length) return regionProviderIds;
+  return platform.providerId ? [platform.providerId] : [];
+};
+
+const normalizeProviderName = (value: string) =>
+  value.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+const getAllowedProviderNames = (platformKeys: string[]) => {
+  const selectedPlatformKeys = platformKeys.includes('all')
+    ? platforms.filter((item) => item.key !== 'all').map((item) => item.key)
+    : platformKeys;
+
+  return selectedPlatformKeys.flatMap(
+    (key) => platforms.find((item) => item.key === key)?.providerNames || []
+  );
+};
+
+const providerMatches = (providerName: string, allowedNames: string[]) => {
+  const normalizedProvider = normalizeProviderName(providerName);
+
+  return allowedNames.some((allowedName) => {
+    const normalizedAllowed = normalizeProviderName(allowedName);
+    if (normalizedAllowed.length <= 3) {
+      return normalizedProvider === normalizedAllowed;
+    }
+
+    return (
+      normalizedProvider === normalizedAllowed ||
+      normalizedProvider.includes(normalizedAllowed) ||
+      normalizedAllowed.includes(normalizedProvider)
+    );
+  });
+};
+
+const filterMoviesBySelectedProviders = (
+  movies: Movie[],
+  platformKeys: string[]
+) => {
+  const allowedNames = getAllowedProviderNames(platformKeys);
+  if (!allowedNames.length) return movies;
+
+  return movies
+    .map((movie) => {
+      const matchingProviders =
+        movie.providerNames?.filter((providerName) =>
+          providerMatches(providerName, allowedNames)
+        ) || [];
+
+      return {
+        ...movie,
+        providerNames: matchingProviders,
+      };
+    })
+    .filter((movie) => movie.providerNames.length > 0);
+};
 
 const getGenreId = (key: string) =>
   genres.find((genre) => genre.key === key)?.genreId;
@@ -184,6 +287,83 @@ const formatRecommendationSource = (items: SavedMovie[]) => {
   return `${titles[0]}, ${titles[1]} +${titles.length - 2}`;
 };
 
+const parseStoredList = (value: string | null, fallback: string[]) => {
+  const parsed = value?.split(',').map((item) => item.trim()).filter(Boolean);
+  return parsed?.length ? parsed : fallback;
+};
+
+const formatSelectedLabels = (
+  selected: string[],
+  options: { label: string; key?: string; code?: string }[]
+) => {
+  const labels = selected
+    .map(
+      (value) =>
+        options.find((item) => item.key === value || item.code === value)?.label
+    )
+    .filter(Boolean);
+
+  if (labels.length <= 1) return labels[0] || '';
+  if (labels.length === 2) return labels.join(', ');
+
+  return `${labels[0]}, ${labels[1]} +${labels.length - 2}`;
+};
+
+const toggleLanguageSelection = (selected: string[], code: string) => {
+  return toggleAllSelection(selected, code);
+};
+
+const toggleAllSelection = (
+  selected: string[],
+  key: string,
+  allKey = 'all'
+) => {
+  if (key === allKey) return [allKey];
+
+  const withoutAll = selected.filter((item) => item !== allKey);
+  const next = withoutAll.includes(key)
+    ? withoutAll.filter((item) => item !== key)
+    : [...withoutAll, key];
+
+  return next.length ? next : [allKey];
+};
+
+const sortByRecentRelease = (a: Movie, b: Movie) => {
+  const aTime = new Date(`${getMovieDisplayDate(a)}T00:00:00`).getTime();
+  const bTime = new Date(`${getMovieDisplayDate(b)}T00:00:00`).getTime();
+
+  if (Number.isNaN(aTime) && Number.isNaN(bTime)) return 0;
+  if (Number.isNaN(aTime)) return 1;
+  if (Number.isNaN(bTime)) return -1;
+
+  return bTime - aTime;
+};
+
+const sortByPopularitySignal = (a: Movie, b: Movie) =>
+  (b.vote_count || 0) - (a.vote_count || 0);
+
+const getMovieDisplayDate = (movie: Movie) =>
+  movie.ottReleaseDate || movie.release_date;
+
+const getDateInRange = (dates: string[], range: DateRange) =>
+  dates.find((date) => date >= range.startDate && date <= range.endDate) || '';
+
+const mergeMovieLists = (
+  lists: Movie[][],
+  sorter: (a: Movie, b: Movie) => number = sortByPopularitySignal
+) => {
+  const seen = new Set<number>();
+  const merged: Movie[] = [];
+
+  lists.flat().forEach((movie) => {
+    if (seen.has(movie.id)) return;
+    seen.add(movie.id);
+    merged.push(movie);
+  });
+
+  return merged.sort(sorter);
+};
+
 const isRecentRecommendation = (movie: Movie) => {
   if (!movie.release_date) return false;
 
@@ -220,9 +400,9 @@ const getOttProviders = async (movieId: number, region: string) => {
   return providers;
 };
 
-const getCertification = async (movieId: number, region: string) => {
+const getReleaseInfo = async (movieId: number, region: string) => {
   const cacheKey = `${movieId}:${region}`;
-  const cached = certificationCache.get(cacheKey);
+  const cached = releaseInfoCache.get(cacheKey);
   if (cached !== undefined) return cached;
 
   const res = await axios.get(
@@ -233,35 +413,50 @@ const getCertification = async (movieId: number, region: string) => {
   const regionRelease = res.data.results?.find(
     (item: { iso_3166_1: string }) => item.iso_3166_1 === region
   );
+  const regionReleaseDates = regionRelease?.release_dates || [];
 
-  const certification = (
-    regionRelease?.release_dates?.find(
+  const certification =
+    regionReleaseDates.find(
       (release: { certification?: string }) => release.certification
-    )?.certification || ''
-  );
+    )?.certification || '';
+  const ottReleaseDates =
+    regionReleaseDates
+      .filter((release: { release_date?: string; type?: number }) =>
+        release.type ? TMDB_OTT_RELEASE_TYPES.includes(release.type) : false
+      )
+      .map((release: { release_date: string }) =>
+        release.release_date.split('T')[0]
+      )
+      .filter(Boolean)
+      .sort((a: string, b: string) => b.localeCompare(a));
 
-  certificationCache.set(cacheKey, certification);
-  return certification;
+  const releaseInfo = { certification, ottReleaseDates };
+  releaseInfoCache.set(cacheKey, releaseInfo);
+  return releaseInfo;
 };
 
 const enrichMovies = async (
   items: Movie[],
   region: string,
-  genreMap: Record<number, string>
+  genreMap: Record<number, string>,
+  range?: DateRange
 ) => {
   const enriched = await mapWithConcurrency(
     items,
     TMDB_METADATA_CONCURRENCY,
     async (movie) => {
-      const [providerNames, certification] = await Promise.all([
+      const [providerNames, releaseInfo] = await Promise.all([
         getOttProviders(movie.id, region),
-        getCertification(movie.id, region),
+        getReleaseInfo(movie.id, region),
       ]);
 
       return {
         ...movie,
         providerNames,
-        certification,
+        certification: releaseInfo.certification,
+        ottReleaseDate: range
+          ? getDateInRange(releaseInfo.ottReleaseDates, range)
+          : releaseInfo.ottReleaseDates[0] || '',
         genreNames: (movie.genre_ids || [])
           .map((id) => genreMap[id])
           .filter(Boolean),
@@ -269,7 +464,9 @@ const enrichMovies = async (
     }
   );
 
-  return enriched.filter((movie) => movie.providerNames.length > 0);
+  return enriched.filter(
+    (movie) => movie.providerNames.length > 0 && (!range || movie.ottReleaseDate)
+  );
 };
 
 export default function HomeScreen() {
@@ -278,9 +475,9 @@ export default function HomeScreen() {
   const [topPicks, setTopPicks] = useState<Movie[]>([]);
   const [recommendationSource, setRecommendationSource] = useState('');
 
-  const [selectedLanguage, setSelectedLanguage] = useState('en');
-  const [selectedPlatform, setSelectedPlatform] = useState('all');
-  const [selectedGenre, setSelectedGenre] = useState('all');
+  const [selectedLanguages, setSelectedLanguages] = useState(['all']);
+  const [selectedPlatforms, setSelectedPlatforms] = useState(['all']);
+  const [selectedGenres, setSelectedGenres] = useState(['all']);
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>(null);
   const [releaseWindowMonths, setReleaseWindowMonths] = useState(3);
 
@@ -288,13 +485,22 @@ export default function HomeScreen() {
   const [errorMessage, setErrorMessage] = useState('');
   const [alertsEnabled, setAlertsEnabled] = useState(false);
 
+  const dismissActiveFilter = () => {
+    if (activeFilter) setActiveFilter(null);
+  };
+
+  const keepActiveFilterOpen = (event: { stopPropagation?: () => void }) => {
+    event.stopPropagation?.();
+  };
+
   const openDetails = (item: Movie) => {
+    dismissActiveFilter();
     router.push({
       pathname: '/details',
       params: {
         id: item.id.toString(),
         title: item.title,
-        releaseDate: item.release_date,
+        releaseDate: getMovieDisplayDate(item),
         posterPath: item.poster_path || '',
         overview: item.overview || '',
         providers: JSON.stringify(item.providerNames || []),
@@ -304,12 +510,14 @@ export default function HomeScreen() {
     });
   };
 
-  const fetchTopPicks = useCallback(async (lang: string, genreKey: string) => {
+  const fetchTopPicks = useCallback(async (langs: string[], genreKeys: string[]) => {
     try {
       const data = await AsyncStorage.getItem('watchlist');
       const watchlist: SavedMovie[] = data ? JSON.parse(data) : [];
-      const region = getRegionCode(lang);
-      const genreId = getGenreId(genreKey);
+      const genreIds = genreKeys
+        .filter((key) => key !== 'all')
+        .map(getGenreId)
+        .filter(Boolean);
       const genreMap = await getGenreMap();
       const savedWithIds = watchlist
         .filter((movie) => Number.isFinite(Number(movie.id)))
@@ -352,9 +560,15 @@ export default function HomeScreen() {
       const seenIds = new Set<number>();
       const candidates = similarResults
         .flat()
-        .filter((m: Movie) => m.original_language === lang)
+        .filter((m: Movie) =>
+          m.original_language ? langs.includes(m.original_language) : false
+        )
         .filter(isRecentRecommendation)
-        .filter((m: Movie) => !genreId || m.genre_ids?.includes(genreId))
+        .filter(
+          (m: Movie) =>
+            !genreIds.length ||
+            m.genre_ids?.some((genreId) => genreIds.includes(genreId))
+        )
         .filter((m: Movie) => !savedIds.has(m.id))
         .filter(
           (m: Movie) => !savedTitles.has(m.title?.trim().toLowerCase() || '')
@@ -366,10 +580,15 @@ export default function HomeScreen() {
         })
         .slice(0, 30);
 
-      const filtered = (await enrichMovies(candidates, region, genreMap)).slice(
-        0,
-        10
+      const enrichedByRegion = await Promise.all(
+        langs.map((lang) => {
+          const regionCandidates = candidates.filter(
+            (movie) => movie.original_language === lang
+          );
+          return enrichMovies(regionCandidates, getRegionCode(lang), genreMap);
+        })
       );
+      const filtered = mergeMovieLists(enrichedByRegion).slice(0, 10);
 
       setTopPicks(filtered);
     } catch (e) {
@@ -382,32 +601,38 @@ export default function HomeScreen() {
   const fetchMovieSection = useCallback(
     async (
       lang: string,
-      platformKey: string,
-      genreKey: string,
+      platformKeys: string[],
+      genreKeys: string[],
       range: { startDate: string; endDate: string },
       genreMap: Record<number, string>
     ) => {
       const region = getRegionCode(lang);
-      const providerId = getProviderId(platformKey);
-      const genreId = getGenreId(genreKey);
+      const providerIds = platformKeys
+        .filter((key) => key !== 'all')
+        .flatMap((key) => getProviderIds(key, region));
+      const genreIds = genreKeys
+        .filter((key) => key !== 'all')
+        .map(getGenreId)
+        .filter(Boolean);
 
       const params: any = {
         api_key: TMDB_API_KEY,
-        sort_by: 'popularity.desc',
+        sort_by: 'release_date.desc',
         with_original_language: lang,
         watch_region: region,
         with_origin_country: region,
         with_watch_monetization_types: 'flatrate',
-        'primary_release_date.gte': range.startDate,
-        'primary_release_date.lte': range.endDate,
+        with_release_type: TMDB_OTT_RELEASE_TYPES.join('|'),
+        'release_date.gte': range.startDate,
+        'release_date.lte': range.endDate,
       };
 
-      if (providerId) {
-        params.with_watch_providers = providerId;
+      if (providerIds.length) {
+        params.with_watch_providers = providerIds.join('|');
       }
 
-      if (genreId) {
-        params.with_genres = genreId;
+      if (genreIds.length) {
+        params.with_genres = genreIds.join('|');
       }
 
       const res = await axios.get(
@@ -418,18 +643,19 @@ export default function HomeScreen() {
       const ottMovies = await enrichMovies(
         res.data.results || [],
         region,
-        genreMap
+        genreMap,
+        range
       );
-      return ottMovies;
+      return filterMoviesBySelectedProviders(ottMovies, platformKeys);
     },
     []
   );
 
   const fetchHomeSections = useCallback(
     async (
-      lang: string,
-      platformKey: string,
-      genreKey: string,
+      langs: string[],
+      platformKeys: string[],
+      genreKeys: string[],
       months: number
     ) => {
       try {
@@ -437,25 +663,33 @@ export default function HomeScreen() {
         setErrorMessage('');
         const genreMap = await getGenreMap();
 
-        const [weekend, recent] = await Promise.all([
-          fetchMovieSection(
-            lang,
-            platformKey,
-            genreKey,
-            getWeekendRange(),
-            genreMap
+        const [weekendLists, recentLists] = await Promise.all([
+          Promise.all(
+            langs.map((lang) =>
+              fetchMovieSection(
+                lang,
+                platformKeys,
+                genreKeys,
+                getWeekendRange(),
+                genreMap
+              )
+            )
           ),
-          fetchMovieSection(
-            lang,
-            platformKey,
-            genreKey,
-            getDateRange(months),
-            genreMap
+          Promise.all(
+            langs.map((lang) =>
+              fetchMovieSection(
+                lang,
+                platformKeys,
+                genreKeys,
+                getDateRange(months),
+                genreMap
+              )
+            )
           ),
         ]);
 
-        setWeekendMovies(weekend);
-        setRecentMovies(recent);
+        setWeekendMovies(mergeMovieLists(weekendLists));
+        setRecentMovies(mergeMovieLists(recentLists, sortByRecentRelease));
       } catch (e) {
         console.log(e);
         setErrorMessage('Couldn’t load releases. Try again.');
@@ -489,48 +723,62 @@ export default function HomeScreen() {
   };
 
   const loadPreferences = useCallback(async () => {
-    const [alertVal, languageVal, platformVal, genreVal, monthsVal] =
+    const [
+      alertVal,
+      languageVal,
+      platformVal,
+      genreVal,
+      homeLanguagesVal,
+      homePlatformsVal,
+      homeGenresVal,
+      monthsVal,
+    ] =
       await Promise.all([
         AsyncStorage.getItem('alertsEnabled'),
         AsyncStorage.getItem(PREF_LANGUAGE_KEY),
         AsyncStorage.getItem(PREF_PLATFORM_KEY),
         AsyncStorage.getItem(PREF_GENRE_KEY),
+        AsyncStorage.getItem(PREF_HOME_LANGUAGES_KEY),
+        AsyncStorage.getItem(PREF_HOME_PLATFORMS_KEY),
+        AsyncStorage.getItem(PREF_HOME_GENRES_KEY),
         AsyncStorage.getItem(PREF_RELEASE_MONTHS_KEY),
       ]);
 
-    if (languageVal) setSelectedLanguage(languageVal);
-    if (platformVal) setSelectedPlatform(platformVal);
-    if (genreVal) setSelectedGenre(genreVal);
+    setSelectedLanguages(parseStoredList(homeLanguagesVal, languageVal ? [languageVal] : ['all']));
+    setSelectedPlatforms(parseStoredList(homePlatformsVal, platformVal ? [platformVal] : ['all']));
+    setSelectedGenres(parseStoredList(homeGenresVal, genreVal ? [genreVal] : ['all']));
     if (monthsVal) setReleaseWindowMonths(Number(monthsVal) || 3);
     setAlertsEnabled(alertVal === 'true');
   }, []);
 
   const handleLanguageSelect = async (code: string) => {
-    setSelectedLanguage(code);
-    setActiveFilter(null);
-    await AsyncStorage.setItem(PREF_LANGUAGE_KEY, code);
+    const next = toggleLanguageSelection(selectedLanguages, code);
+    setSelectedLanguages(next);
+    await AsyncStorage.setItem(PREF_HOME_LANGUAGES_KEY, next.join(','));
   };
 
   const handlePlatformSelect = async (key: string) => {
-    setSelectedPlatform(key);
-    setActiveFilter(null);
-    await AsyncStorage.setItem(PREF_PLATFORM_KEY, key);
+    const next = toggleAllSelection(selectedPlatforms, key);
+    setSelectedPlatforms(next);
+    await AsyncStorage.setItem(PREF_HOME_PLATFORMS_KEY, next.join(','));
   };
 
   const handleGenreSelect = async (key: string) => {
-    setSelectedGenre(key);
-    setActiveFilter(null);
-    await AsyncStorage.setItem(PREF_GENRE_KEY, key);
+    const next = toggleAllSelection(selectedGenres, key);
+    setSelectedGenres(next);
+    await AsyncStorage.setItem(PREF_HOME_GENRES_KEY, next.join(','));
   };
 
   const refreshReleases = () => {
+    dismissActiveFilter();
+    const languageCodes = getSelectedLanguageCodes(selectedLanguages);
     fetchHomeSections(
-      selectedLanguage,
-      selectedPlatform,
-      selectedGenre,
+      languageCodes,
+      selectedPlatforms,
+      selectedGenres,
       releaseWindowMonths
     );
-    fetchTopPicks(selectedLanguage, selectedGenre);
+    fetchTopPicks(languageCodes, selectedGenres);
   };
 
   const checkAlertStatus = useCallback(async () => {
@@ -545,22 +793,23 @@ export default function HomeScreen() {
   );
 
   useEffect(() => {
+    const languageCodes = getSelectedLanguageCodes(selectedLanguages);
     fetchHomeSections(
-      selectedLanguage,
-      selectedPlatform,
-      selectedGenre,
+      languageCodes,
+      selectedPlatforms,
+      selectedGenres,
       releaseWindowMonths
     );
-    fetchTopPicks(selectedLanguage, selectedGenre);
+    fetchTopPicks(languageCodes, selectedGenres);
     checkAlertStatus();
   }, [
     checkAlertStatus,
     fetchHomeSections,
     fetchTopPicks,
     releaseWindowMonths,
-    selectedGenre,
-    selectedLanguage,
-    selectedPlatform,
+    selectedGenres,
+    selectedLanguages,
+    selectedPlatforms,
   ]);
 
   const renderCard = (item: Movie, featured = false) => (
@@ -577,7 +826,9 @@ export default function HomeScreen() {
         {item.title}
       </Text>
 
-      <Text style={styles.date}>{formatDisplayDate(item.release_date)}</Text>
+      <Text style={styles.date}>
+        {formatDisplayDate(getMovieDisplayDate(item))}
+      </Text>
 
       {item.providerNames?.[0] && (
         <Text style={styles.providerPill} numberOfLines={1}>
@@ -604,45 +855,42 @@ export default function HomeScreen() {
     </Pressable>
   );
 
-  const platformLabel =
-    platforms.find((p) => p.key === selectedPlatform)?.label || 'All';
-  const genreLabel = genres.find((g) => g.key === selectedGenre)?.label || 'All';
-  const languageLabel =
-    languages.find((language) => language.code === selectedLanguage)?.label ||
-    'selected language';
+  const platformLabel = formatSelectedLabels(selectedPlatforms, platforms);
+  const genreLabel = formatSelectedLabels(selectedGenres, genres);
+  const languageLabel = formatSelectedLabels(selectedLanguages, languages);
   const filterOptions =
     activeFilter === 'language'
       ? languages.map((item) => ({
           key: item.code,
           label: item.label,
-          selected: selectedLanguage === item.code,
+          selected: selectedLanguages.includes(item.code),
           onPress: () => handleLanguageSelect(item.code),
         }))
       : activeFilter === 'platform'
         ? platforms.map((item) => ({
             key: item.key,
             label: item.label,
-            selected: selectedPlatform === item.key,
+            selected: selectedPlatforms.includes(item.key),
             onPress: () => handlePlatformSelect(item.key),
           }))
         : activeFilter === 'genre'
           ? genres.map((item) => ({
               key: item.key,
               label: item.label,
-              selected: selectedGenre === item.key,
+              selected: selectedGenres.includes(item.key),
               onPress: () => handleGenreSelect(item.key),
             }))
           : [];
   const releaseSectionTitle =
-    selectedGenre === 'all'
+    selectedGenres.includes('all')
       ? `${platformLabel} Releases: Last ${releaseWindowMonths} Months`
       : `${genreLabel} on ${platformLabel}: Last ${releaseWindowMonths} Months`;
   const weekendEmptyText =
-    selectedGenre === 'all'
+    selectedGenres.includes('all')
       ? `No ${languageLabel} weekend drops found on ${platformLabel}.`
       : `No ${languageLabel} ${genreLabel.toLowerCase()} drops found on ${platformLabel} this weekend.`;
   const recentEmptyText =
-    selectedGenre === 'all'
+    selectedGenres.includes('all')
       ? `No ${languageLabel} OTT releases found for this window.`
       : `No ${languageLabel} ${genreLabel.toLowerCase()} releases found for this window.`;
 
@@ -706,8 +954,13 @@ export default function HomeScreen() {
   );
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.logo}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      onScrollBeginDrag={dismissActiveFilter}
+      onTouchStart={dismissActiveFilter}
+    >
+      <View style={styles.logo} onTouchStart={dismissActiveFilter}>
         <Text style={styles.logoStream}>Stream</Text>
         <Text style={styles.logoDrop}>Drop</Text>
       </View>
@@ -722,14 +975,14 @@ export default function HomeScreen() {
         )
       )}
 
-      <View style={styles.filterSummaryRow}>
+      <View style={styles.filterSummaryRow} onTouchStart={keepActiveFilterOpen}>
         {renderFilterButton('Language', languageLabel, 'language')}
         {renderFilterButton('Streaming', platformLabel, 'platform')}
         {renderFilterButton('Genre', genreLabel, 'genre')}
       </View>
 
       {activeFilter && (
-        <View style={styles.filterPanel}>
+        <View style={styles.filterPanel} onTouchStart={keepActiveFilterOpen}>
           <View style={styles.filterPanelHeader}>
             <Text style={styles.filterPanelTitle}>
               {activeFilter === 'platform' ? 'Streaming' : activeFilter}
@@ -762,79 +1015,84 @@ export default function HomeScreen() {
         </View>
       )}
 
-      <View style={styles.sectionHeader}>
-        <View>
-          <Text style={styles.sectionTitle}>This Weekend</Text>
-          <Text style={styles.sectionSubtitle}>Thu-Sun releases</Text>
-        </View>
-        <Pressable style={styles.refreshButton} onPress={refreshReleases}>
-          <Text style={styles.refreshText}>Refresh</Text>
-        </Pressable>
-      </View>
-
-      {errorMessage ? (
-        <View style={styles.statePanel}>
-          <Text style={styles.stateText}>{errorMessage}</Text>
-          <Pressable style={styles.retryButton} onPress={refreshReleases}>
-            <Text style={styles.retryText}>Try Again</Text>
+      <View onTouchStart={dismissActiveFilter}>
+        <View style={styles.sectionHeader}>
+          <View>
+            <Text style={styles.sectionTitle}>This Weekend</Text>
+            <Text style={styles.sectionSubtitle}>Thu-Sun releases</Text>
+          </View>
+          <Pressable style={styles.refreshButton} onPress={refreshReleases}>
+            <Text style={styles.refreshText}>Refresh</Text>
           </Pressable>
         </View>
-      ) : loading ? (
-        renderSkeletonCards(true)
-      ) : weekendMovies.length > 0 ? (
-        <>
-          <FlatList
-            horizontal
-            data={weekendMovies}
-            keyExtractor={(i) => i.id.toString()}
-            renderItem={({ item }) => renderCard(item, true)}
-            showsHorizontalScrollIndicator={false}
-          />
-          <Text style={styles.scrollHint}>More releases below</Text>
-        </>
-      ) : (
-        <View style={styles.emptyPanel}>
-          <Text style={styles.emptyText}>{weekendEmptyText}</Text>
-        </View>
-      )}
 
-      {/* Top Picks only if available */}
-      {topPicks.length > 0 && (
-        <>
-          <Text style={styles.section}>
-            Because you saved {recommendationSource}
-          </Text>
+        {errorMessage ? (
+          <View style={styles.statePanel}>
+            <Text style={styles.stateText}>{errorMessage}</Text>
+            <Pressable style={styles.retryButton} onPress={refreshReleases}>
+              <Text style={styles.retryText}>Try Again</Text>
+            </Pressable>
+          </View>
+        ) : loading ? (
+          renderSkeletonCards(true)
+        ) : weekendMovies.length > 0 ? (
+          <>
+            <FlatList
+              horizontal
+              data={weekendMovies}
+              keyExtractor={(i) => i.id.toString()}
+              renderItem={({ item }) => renderCard(item, true)}
+              showsHorizontalScrollIndicator={false}
+            />
+            <Text style={styles.scrollHint}>More releases below</Text>
+          </>
+        ) : (
+          <View style={styles.emptyPanel}>
+            <Text style={styles.emptyText}>{weekendEmptyText}</Text>
+          </View>
+        )}
+
+        {/* Top Picks only if available */}
+        {topPicks.length > 0 && (
+          <>
+            <Text style={styles.section}>
+              Because you saved {recommendationSource}
+            </Text>
+            <FlatList
+              horizontal
+              data={topPicks}
+              keyExtractor={(i) => i.id.toString()}
+              renderItem={({ item }) => renderCard(item)}
+              showsHorizontalScrollIndicator={false}
+            />
+          </>
+        )}
+
+        <Text style={styles.section}>
+          {releaseSectionTitle}
+        </Text>
+        <Text style={styles.sectionNote}>
+          Beta note: Showing a curated sample from TMDB, not every matching release.
+        </Text>
+
+        {loading && !errorMessage ? (
+          renderSkeletonCards()
+        ) : !loading && recentMovies.length > 0 ? (
           <FlatList
             horizontal
-            data={topPicks}
+            data={recentMovies}
             keyExtractor={(i) => i.id.toString()}
             renderItem={({ item }) => renderCard(item)}
             showsHorizontalScrollIndicator={false}
           />
-        </>
-      )}
+        ) : !loading ? (
+          <View style={styles.emptyPanel}>
+            <Text style={styles.emptyText}>{recentEmptyText}</Text>
+          </View>
+        ) : null}
 
-      <Text style={styles.section}>
-        {releaseSectionTitle}
-      </Text>
-
-      {loading && !errorMessage ? (
-        renderSkeletonCards()
-      ) : !loading && recentMovies.length > 0 ? (
-        <FlatList
-          horizontal
-          data={recentMovies}
-          keyExtractor={(i) => i.id.toString()}
-          renderItem={({ item }) => renderCard(item)}
-          showsHorizontalScrollIndicator={false}
-        />
-      ) : !loading ? (
-        <View style={styles.emptyPanel}>
-          <Text style={styles.emptyText}>{recentEmptyText}</Text>
-        </View>
-      ) : null}
-
-      <Text style={styles.tmdbFooter}>Movie data from TMDB</Text>
+        <Text style={styles.tmdbFooter}>Movie data from TMDB</Text>
+      </View>
     </ScrollView>
   );
 }
@@ -860,6 +1118,14 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   section: { color: '#fff', margin: 16, fontWeight: '700' },
+  sectionNote: {
+    color: '#6B7280',
+    fontSize: 11,
+    lineHeight: 16,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    marginTop: -8,
+  },
   sectionHeader: {
     alignItems: 'center',
     flexDirection: 'row',
