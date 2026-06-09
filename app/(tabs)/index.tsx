@@ -491,6 +491,7 @@ export default function HomeScreen() {
   const [searchResults, setSearchResults] = useState<Movie[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
 
   const [selectedLanguages, setSelectedLanguages] = useState(['all']);
   const [selectedPlatforms, setSelectedPlatforms] = useState(['all']);
@@ -1178,18 +1179,26 @@ export default function HomeScreen() {
         <Text style={styles.logoDrop}>Drop</Text>
       </View>
 
-      <View style={styles.searchBar} onTouchStart={keepActiveFilterOpen}>
+      <View
+        style={[styles.searchBar, searchFocused && styles.searchBarFocused]}
+        onTouchStart={keepActiveFilterOpen}
+      >
         <Text style={styles.searchIcon}>Search</Text>
         <TextInput
           value={searchQuery}
+          onBlur={() => setSearchFocused(false)}
           onChangeText={(value) => {
             dismissActiveFilter();
             setSearchQuery(value);
           }}
+          onFocus={() => setSearchFocused(true)}
           placeholder="Find a movie"
           placeholderTextColor="#6B7280"
           returnKeyType="search"
-          style={styles.searchInput}
+          style={[
+            styles.searchInput,
+            Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : null,
+          ]}
         />
         {searchQuery ? (
           <Pressable style={styles.searchClearButton} onPress={clearSearch}>
@@ -1546,6 +1555,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginBottom: 12,
     paddingHorizontal: 12,
+  },
+  searchBarFocused: {
+    borderColor: '#EF233C',
   },
   searchIcon: {
     color: '#EF233C',
