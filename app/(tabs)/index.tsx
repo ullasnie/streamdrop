@@ -2,8 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import * as Notifications from 'expo-notifications';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Image,
   Platform,
@@ -11,6 +12,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 
@@ -123,7 +125,11 @@ const PREF_HOME_PLATFORMS_KEY = 'homeSelectedPlatformsV1';
 const PREF_HOME_GENRES_KEY = 'homeSelectedGenresV1';
 const PREF_RELEASE_MONTHS_KEY = 'releaseWindowMonths';
 const TMDB_METADATA_CONCURRENCY = 6;
+const TMDB_DISCOVER_RESULT_LIMIT = 12;
+const TMDB_RECOMMENDATION_CANDIDATE_LIMIT = 18;
+const TMDB_SEARCH_RESULT_LIMIT = 8;
 const RECOMMENDATION_MAX_AGE_YEARS = 3;
+const INITIAL_HOME_LANGUAGE_LIMIT = 3;
 const HOME_TOP_PADDING = Platform.OS === 'web' ? 28 : 60;
 const HOME_BOTTOM_PADDING = Platform.OS === 'web' ? 112 : 120;
 const FEATURED_CARD_WIDTH = Platform.OS === 'web' ? 158 : 178;
@@ -184,6 +190,11 @@ const getSelectedLanguageCodes = (selected: string[]) =>
   selected.includes('all')
     ? languages.filter((item) => item.code !== 'all').map((item) => item.code)
     : selected;
+
+const splitInitialLanguages = (langs: string[]) => ({
+  initialLangs: langs.slice(0, INITIAL_HOME_LANGUAGE_LIMIT),
+  deferredLangs: langs.slice(INITIAL_HOME_LANGUAGE_LIMIT),
+});
 
 const getProviderIds = (key: string, region: string) => {
   const platform = platforms.find((p) => p.key === key);
@@ -470,10 +481,16 @@ const enrichMovies = async (
 };
 
 export default function HomeScreen() {
+  const homeFetchIdRef = useRef(0);
+  const searchFetchIdRef = useRef(0);
   const [weekendMovies, setWeekendMovies] = useState<Movie[]>([]);
   const [recentMovies, setRecentMovies] = useState<Movie[]>([]);
   const [topPicks, setTopPicks] = useState<Movie[]>([]);
   const [recommendationSource, setRecommendationSource] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Movie[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState('');
 
   const [selectedLanguages, setSelectedLanguages] = useState(['all']);
   const [selectedPlatforms, setSelectedPlatforms] = useState(['all']);
@@ -484,6 +501,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [alertsEnabled, setAlertsEnabled] = useState(false);
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
 
   const dismissActiveFilter = () => {
     if (activeFilter) setActiveFilter(null);
@@ -509,6 +527,77 @@ export default function HomeScreen() {
       },
     });
   };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setSearchError('');
+    setSearchLoading(false);
+  };
+
+  const fetchSearchResults = useCallback(
+    async (query: string, langs: string[], platformKeys: string[], genreKeys: string[]) => {
+      const fetchId = searchFetchIdRef.current + 1;
+      searchFetchIdRef.current = fetchId;
+      const isCurrentFetch = () => searchFetchIdRef.current === fetchId;
+
+      try {
+        setSearchLoading(true);
+        setSearchError('');
+
+        const genreMap = await getGenreMap();
+        const selectedLanguageCodes = getSelectedLanguageCodes(langs);
+        const selectedGenreIds = genreKeys
+          .filter((key) => key !== 'all')
+          .map(getGenreId)
+          .filter(Boolean);
+        const primaryLanguage = selectedLanguageCodes[0] || 'en';
+        const region = getRegionCode(primaryLanguage);
+
+        const res = await axios.get('https://api.themoviedb.org/3/search/movie', {
+          params: {
+            api_key: TMDB_API_KEY,
+            include_adult: false,
+            query,
+          },
+        });
+
+        const seenIds = new Set<number>();
+        const candidates = (res.data.results || [])
+          .filter((movie: Movie) => {
+            if (seenIds.has(movie.id)) return false;
+            seenIds.add(movie.id);
+            return true;
+          })
+          .filter((movie: Movie) =>
+            movie.original_language
+              ? selectedLanguageCodes.includes(movie.original_language)
+              : true
+          )
+          .filter(
+            (movie: Movie) =>
+              !selectedGenreIds.length ||
+              movie.genre_ids?.some((genreId) => selectedGenreIds.includes(genreId))
+          )
+          .slice(0, TMDB_SEARCH_RESULT_LIMIT);
+
+        const enriched = await enrichMovies(candidates, region, genreMap);
+        const filtered = filterMoviesBySelectedProviders(enriched, platformKeys);
+        if (!isCurrentFetch()) return;
+
+        setSearchResults(filtered);
+      } catch (error) {
+        console.log('Search error:', error);
+        if (!isCurrentFetch()) return;
+
+        setSearchResults([]);
+        setSearchError('Search is unavailable right now.');
+      } finally {
+        if (isCurrentFetch()) setSearchLoading(false);
+      }
+    },
+    []
+  );
 
   const fetchTopPicks = useCallback(async (langs: string[], genreKeys: string[]) => {
     try {
@@ -578,7 +667,7 @@ export default function HomeScreen() {
           seenIds.add(m.id);
           return true;
         })
-        .slice(0, 30);
+        .slice(0, TMDB_RECOMMENDATION_CANDIDATE_LIMIT);
 
       const enrichedByRegion = await Promise.all(
         langs.map((lang) => {
@@ -588,7 +677,7 @@ export default function HomeScreen() {
           return enrichMovies(regionCandidates, getRegionCode(lang), genreMap);
         })
       );
-      const filtered = mergeMovieLists(enrichedByRegion).slice(0, 10);
+      const filtered = mergeMovieLists(enrichedByRegion).slice(0, 8);
 
       setTopPicks(filtered);
     } catch (e) {
@@ -640,8 +729,12 @@ export default function HomeScreen() {
         { params }
       );
 
+      const discoverResults = (res.data.results || []).slice(
+        0,
+        TMDB_DISCOVER_RESULT_LIMIT
+      );
       const ottMovies = await enrichMovies(
-        res.data.results || [],
+        discoverResults,
         region,
         genreMap,
         range
@@ -658,14 +751,16 @@ export default function HomeScreen() {
       genreKeys: string[],
       months: number
     ) => {
-      try {
-        setLoading(true);
-        setErrorMessage('');
-        const genreMap = await getGenreMap();
-
-        const [weekendLists, recentLists] = await Promise.all([
+      const fetchId = homeFetchIdRef.current + 1;
+      homeFetchIdRef.current = fetchId;
+      const isCurrentFetch = () => homeFetchIdRef.current === fetchId;
+      const fetchSectionsForLanguages = (
+        languageBatch: string[],
+        genreMap: Record<number, string>
+      ) =>
+        Promise.all([
           Promise.all(
-            langs.map((lang) =>
+            languageBatch.map((lang) =>
               fetchMovieSection(
                 lang,
                 platformKeys,
@@ -676,7 +771,7 @@ export default function HomeScreen() {
             )
           ),
           Promise.all(
-            langs.map((lang) =>
+            languageBatch.map((lang) =>
               fetchMovieSection(
                 lang,
                 platformKeys,
@@ -688,12 +783,45 @@ export default function HomeScreen() {
           ),
         ]);
 
+      try {
+        setLoading(true);
+        setErrorMessage('');
+        const genreMap = await getGenreMap();
+        const { initialLangs, deferredLangs } = splitInitialLanguages(langs);
+
+        const [weekendLists, recentLists] = await fetchSectionsForLanguages(
+          initialLangs,
+          genreMap
+        );
+        if (!isCurrentFetch()) return;
+
         setWeekendMovies(mergeMovieLists(weekendLists));
         setRecentMovies(mergeMovieLists(recentLists, sortByRecentRelease));
+        setLoading(false);
+
+        if (deferredLangs.length) {
+          try {
+            const [deferredWeekendLists, deferredRecentLists] =
+              await fetchSectionsForLanguages(deferredLangs, genreMap);
+            if (!isCurrentFetch()) return;
+
+            setWeekendMovies(
+              mergeMovieLists([...weekendLists, ...deferredWeekendLists])
+            );
+            setRecentMovies(
+              mergeMovieLists(
+                [...recentLists, ...deferredRecentLists],
+                sortByRecentRelease
+              )
+            );
+          } catch (backgroundError) {
+            console.log('Deferred home fetch error:', backgroundError);
+          }
+        }
       } catch (e) {
         console.log(e);
+        if (!isCurrentFetch()) return;
         setErrorMessage('Couldn’t load releases. Try again.');
-      } finally {
         setLoading(false);
       }
     },
@@ -723,32 +851,44 @@ export default function HomeScreen() {
   };
 
   const loadPreferences = useCallback(async () => {
-    const [
-      alertVal,
-      languageVal,
-      platformVal,
-      genreVal,
-      homeLanguagesVal,
-      homePlatformsVal,
-      homeGenresVal,
-      monthsVal,
-    ] =
-      await Promise.all([
-        AsyncStorage.getItem('alertsEnabled'),
-        AsyncStorage.getItem(PREF_LANGUAGE_KEY),
-        AsyncStorage.getItem(PREF_PLATFORM_KEY),
-        AsyncStorage.getItem(PREF_GENRE_KEY),
-        AsyncStorage.getItem(PREF_HOME_LANGUAGES_KEY),
-        AsyncStorage.getItem(PREF_HOME_PLATFORMS_KEY),
-        AsyncStorage.getItem(PREF_HOME_GENRES_KEY),
-        AsyncStorage.getItem(PREF_RELEASE_MONTHS_KEY),
+    try {
+      const entries = await AsyncStorage.multiGet([
+        'alertsEnabled',
+        PREF_LANGUAGE_KEY,
+        PREF_PLATFORM_KEY,
+        PREF_GENRE_KEY,
+        PREF_HOME_LANGUAGES_KEY,
+        PREF_HOME_PLATFORMS_KEY,
+        PREF_HOME_GENRES_KEY,
+        PREF_RELEASE_MONTHS_KEY,
       ]);
+      const values = Object.fromEntries(entries);
 
-    setSelectedLanguages(parseStoredList(homeLanguagesVal, languageVal ? [languageVal] : ['all']));
-    setSelectedPlatforms(parseStoredList(homePlatformsVal, platformVal ? [platformVal] : ['all']));
-    setSelectedGenres(parseStoredList(homeGenresVal, genreVal ? [genreVal] : ['all']));
-    if (monthsVal) setReleaseWindowMonths(Number(monthsVal) || 3);
-    setAlertsEnabled(alertVal === 'true');
+      setSelectedLanguages(
+        parseStoredList(
+          values[PREF_HOME_LANGUAGES_KEY],
+          values[PREF_LANGUAGE_KEY] ? [values[PREF_LANGUAGE_KEY]] : ['all']
+        )
+      );
+      setSelectedPlatforms(
+        parseStoredList(
+          values[PREF_HOME_PLATFORMS_KEY],
+          values[PREF_PLATFORM_KEY] ? [values[PREF_PLATFORM_KEY]] : ['all']
+        )
+      );
+      setSelectedGenres(
+        parseStoredList(
+          values[PREF_HOME_GENRES_KEY],
+          values[PREF_GENRE_KEY] ? [values[PREF_GENRE_KEY]] : ['all']
+        )
+      );
+      if (values[PREF_RELEASE_MONTHS_KEY]) {
+        setReleaseWindowMonths(Number(values[PREF_RELEASE_MONTHS_KEY]) || 3);
+      }
+      setAlertsEnabled(values.alertsEnabled === 'true');
+    } finally {
+      setPreferencesLoaded(true);
+    }
   }, []);
 
   const handleLanguageSelect = async (code: string) => {
@@ -781,11 +921,6 @@ export default function HomeScreen() {
     fetchTopPicks(languageCodes, selectedGenres);
   };
 
-  const checkAlertStatus = useCallback(async () => {
-    const val = await AsyncStorage.getItem('alertsEnabled');
-    setAlertsEnabled(val === 'true');
-  }, []);
-
   useFocusEffect(
     useCallback(() => {
       loadPreferences();
@@ -793,6 +928,8 @@ export default function HomeScreen() {
   );
 
   useEffect(() => {
+    if (!preferencesLoaded) return;
+
     const languageCodes = getSelectedLanguageCodes(selectedLanguages);
     fetchHomeSections(
       languageCodes,
@@ -801,12 +938,40 @@ export default function HomeScreen() {
       releaseWindowMonths
     );
     fetchTopPicks(languageCodes, selectedGenres);
-    checkAlertStatus();
   }, [
-    checkAlertStatus,
     fetchHomeSections,
     fetchTopPicks,
+    preferencesLoaded,
     releaseWindowMonths,
+    selectedGenres,
+    selectedLanguages,
+    selectedPlatforms,
+  ]);
+
+  useEffect(() => {
+    const query = searchQuery.trim();
+
+    if (query.length < 2) {
+      searchFetchIdRef.current += 1;
+      setSearchResults([]);
+      setSearchError('');
+      setSearchLoading(false);
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      fetchSearchResults(
+        query,
+        selectedLanguages,
+        selectedPlatforms,
+        selectedGenres
+      );
+    }, 350);
+
+    return () => clearTimeout(timeout);
+  }, [
+    fetchSearchResults,
+    searchQuery,
     selectedGenres,
     selectedLanguages,
     selectedPlatforms,
@@ -953,6 +1118,54 @@ export default function HomeScreen() {
     </View>
   );
 
+  const renderSearchResult = (item: Movie) => (
+    <Pressable
+      key={item.id}
+      style={styles.searchResult}
+      onPress={() => openDetails(item)}
+    >
+      {item.poster_path ? (
+        <Image
+          source={{ uri: `https://image.tmdb.org/t/p/w342${item.poster_path}` }}
+          style={styles.searchPoster}
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={styles.searchPosterPlaceholder}>
+          <Text style={styles.searchPosterPlaceholderText}>No poster</Text>
+        </View>
+      )}
+
+      <View style={styles.searchResultContent}>
+        <Text style={styles.searchTitle} numberOfLines={2}>
+          {item.title}
+        </Text>
+        <Text style={styles.searchDate}>
+          {formatDisplayDate(getMovieDisplayDate(item)) || 'Release date unknown'}
+        </Text>
+        {item.providerNames?.[0] && (
+          <Text style={styles.providerPill} numberOfLines={1}>
+            {item.providerNames[0]}
+          </Text>
+        )}
+        {(item.genreNames?.[0] || item.certification) && (
+          <Text style={styles.searchMeta} numberOfLines={1}>
+            {[item.genreNames?.[0], item.certification]
+              .filter(Boolean)
+              .join(' · ')}
+          </Text>
+        )}
+        {item.overview ? (
+          <Text style={styles.searchOverview} numberOfLines={2}>
+            {item.overview}
+          </Text>
+        ) : null}
+      </View>
+    </Pressable>
+  );
+
+  const searchActive = searchQuery.trim().length >= 2;
+
   return (
     <ScrollView
       style={styles.container}
@@ -965,57 +1178,109 @@ export default function HomeScreen() {
         <Text style={styles.logoDrop}>Drop</Text>
       </View>
 
-      {Platform.OS !== 'web' && (
-        !alertsEnabled ? (
-          <Pressable style={styles.alertBtn} onPress={scheduleFridayReminder}>
-            <Text style={styles.alertText}>Enable Friday Alerts 🔔</Text>
+      <View style={styles.searchBar} onTouchStart={keepActiveFilterOpen}>
+        <Text style={styles.searchIcon}>Search</Text>
+        <TextInput
+          value={searchQuery}
+          onChangeText={(value) => {
+            dismissActiveFilter();
+            setSearchQuery(value);
+          }}
+          placeholder="Find a movie"
+          placeholderTextColor="#6B7280"
+          returnKeyType="search"
+          style={styles.searchInput}
+        />
+        {searchQuery ? (
+          <Pressable style={styles.searchClearButton} onPress={clearSearch}>
+            <Text style={styles.searchClearText}>Clear</Text>
           </Pressable>
-        ) : (
-          <Text style={styles.enabledText}>Friday alerts are on</Text>
-        )
-      )}
-
-      <View style={styles.filterSummaryRow} onTouchStart={keepActiveFilterOpen}>
-        {renderFilterButton('Language', languageLabel, 'language')}
-        {renderFilterButton('Streaming', platformLabel, 'platform')}
-        {renderFilterButton('Genre', genreLabel, 'genre')}
+        ) : null}
       </View>
 
-      {activeFilter && (
-        <View style={styles.filterPanel} onTouchStart={keepActiveFilterOpen}>
-          <View style={styles.filterPanelHeader}>
-            <Text style={styles.filterPanelTitle}>
-              {activeFilter === 'platform' ? 'Streaming' : activeFilter}
-            </Text>
-            <Pressable onPress={() => setActiveFilter(null)}>
-              <Text style={styles.filterPanelClose}>Done</Text>
-            </Pressable>
+      {searchActive ? (
+        <View style={styles.searchSection} onTouchStart={dismissActiveFilter}>
+          <View style={styles.searchHeader}>
+            <View>
+              <Text style={styles.sectionTitle}>Search Results</Text>
+              <Text style={styles.sectionSubtitle}>
+                Matching movies from TMDB
+              </Text>
+            </View>
+            {searchLoading && (
+              <ActivityIndicator color="#EF233C" size="small" />
+            )}
           </View>
-          <View style={styles.filterOptionGrid}>
-            {filterOptions.map((item) => (
-              <Pressable
-                key={item.key}
-                style={[
-                  styles.chip,
-                  item.selected && styles.chipSelected,
-                ]}
-                onPress={item.onPress}
-              >
-                <Text
-                  style={[
-                    styles.chipText,
-                    item.selected && styles.chipTextSelected,
-                  ]}
-                >
-                  {item.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-      )}
 
-      <View onTouchStart={dismissActiveFilter}>
+          {searchError ? (
+            <View style={styles.emptyPanel}>
+              <Text style={styles.emptyText}>{searchError}</Text>
+            </View>
+          ) : !searchLoading && searchResults.length === 0 ? (
+            <View style={styles.emptyPanel}>
+              <Text style={styles.emptyText}>
+                No matching movies found for “{searchQuery.trim()}”.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.searchResultsList}>
+              {searchResults.map(renderSearchResult)}
+            </View>
+          )}
+        </View>
+      ) : (
+        <>
+          {Platform.OS !== 'web' && (
+            !alertsEnabled ? (
+              <Pressable style={styles.alertBtn} onPress={scheduleFridayReminder}>
+                <Text style={styles.alertText}>Enable Friday Alerts 🔔</Text>
+              </Pressable>
+            ) : (
+              <Text style={styles.enabledText}>Friday alerts are on</Text>
+            )
+          )}
+
+          <View style={styles.filterSummaryRow} onTouchStart={keepActiveFilterOpen}>
+            {renderFilterButton('Language', languageLabel, 'language')}
+            {renderFilterButton('Streaming', platformLabel, 'platform')}
+            {renderFilterButton('Genre', genreLabel, 'genre')}
+          </View>
+
+          {activeFilter && (
+            <View style={styles.filterPanel} onTouchStart={keepActiveFilterOpen}>
+              <View style={styles.filterPanelHeader}>
+                <Text style={styles.filterPanelTitle}>
+                  {activeFilter === 'platform' ? 'Streaming' : activeFilter}
+                </Text>
+                <Pressable onPress={() => setActiveFilter(null)}>
+                  <Text style={styles.filterPanelClose}>Done</Text>
+                </Pressable>
+              </View>
+              <View style={styles.filterOptionGrid}>
+                {filterOptions.map((item) => (
+                  <Pressable
+                    key={item.key}
+                    style={[
+                      styles.chip,
+                      item.selected && styles.chipSelected,
+                    ]}
+                    onPress={item.onPress}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        item.selected && styles.chipTextSelected,
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          )}
+
+          <View onTouchStart={dismissActiveFilter}>
         <View style={styles.sectionHeader}>
           <View>
             <Text style={styles.sectionTitle}>This Weekend</Text>
@@ -1093,6 +1358,8 @@ export default function HomeScreen() {
 
         <Text style={styles.tmdbFooter}>Movie data from TMDB</Text>
       </View>
+        </>
+      )}
     </ScrollView>
   );
 }
@@ -1266,6 +1533,115 @@ const styles = StyleSheet.create({
     height: 10,
     marginTop: 6,
     width: '52%',
+  },
+  searchBar: {
+    alignItems: 'center',
+    backgroundColor: '#12151C',
+    borderColor: '#2A2E36',
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    minHeight: 50,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    paddingHorizontal: 12,
+  },
+  searchIcon: {
+    color: '#EF233C',
+    fontSize: 12,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
+  searchInput: {
+    color: '#FFFFFF',
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '700',
+    minHeight: 48,
+  },
+  searchClearButton: {
+    borderColor: '#3A1118',
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  searchClearText: {
+    color: '#EF233C',
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  searchSection: {
+    marginTop: 4,
+  },
+  searchHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  searchResultsList: {
+    gap: 12,
+    marginHorizontal: 16,
+  },
+  searchResult: {
+    backgroundColor: '#12151C',
+    borderColor: '#242832',
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    padding: 10,
+  },
+  searchPoster: {
+    backgroundColor: '#1B1F27',
+    borderRadius: 7,
+    height: 126,
+    width: 84,
+  },
+  searchPosterPlaceholder: {
+    alignItems: 'center',
+    backgroundColor: '#1B1F27',
+    borderRadius: 7,
+    height: 126,
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+    width: 84,
+  },
+  searchPosterPlaceholderText: {
+    color: '#6B7280',
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  searchResultContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+  searchTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  searchDate: {
+    color: '#EF233C',
+    fontSize: 12,
+    marginTop: 4,
+  },
+  searchMeta: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 6,
+  },
+  searchOverview: {
+    color: '#6B7280',
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 8,
   },
   filterSummaryRow: {
     flexDirection: 'row',
