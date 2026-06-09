@@ -937,13 +937,28 @@ export default function HomeScreen() {
     const style = document.createElement('style');
     style.id = styleId;
     style.textContent = `
+      #streamdrop-home-search-bar,
+      #streamdrop-home-search-bar *,
       #streamdrop-home-search,
-      #streamdrop-home-search:focus,
-      #streamdrop-home-search:focus-visible {
+      #streamdrop-home-search *,
+      #streamdrop-home-search-bar input,
+      #streamdrop-home-search-bar input:focus,
+      #streamdrop-home-search-bar input:focus-visible,
+      #streamdrop-home-search-bar [data-focusable="true"],
+      #streamdrop-home-search-bar [data-focusable="true"]:focus,
+      #streamdrop-home-search-bar [data-focusable="true"]:focus-visible {
         outline: none !important;
+        outline-color: transparent !important;
+        outline-width: 0 !important;
         box-shadow: none !important;
         -webkit-box-shadow: none !important;
         -webkit-tap-highlight-color: transparent !important;
+      }
+
+      #streamdrop-home-search-bar input {
+        border: 0 !important;
+        -webkit-appearance: none !important;
+        appearance: none !important;
       }
     `;
     document.head.appendChild(style);
@@ -1201,6 +1216,7 @@ export default function HomeScreen() {
       </View>
 
       <View
+        nativeID="streamdrop-home-search-bar"
         style={[styles.searchBar, searchFocused && styles.searchBarFocused]}
         onTouchStart={keepActiveFilterOpen}
       >
@@ -1219,7 +1235,15 @@ export default function HomeScreen() {
           returnKeyType="search"
           style={[
             styles.searchInput,
-            Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : null,
+            Platform.OS === 'web'
+              ? ({
+                  borderWidth: 0,
+                  boxShadow: 'none',
+                  outlineColor: 'transparent',
+                  outlineStyle: 'none',
+                  outlineWidth: 0,
+                } as any)
+              : null,
           ]}
         />
         {searchQuery ? (
