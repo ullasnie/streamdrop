@@ -929,6 +929,27 @@ export default function HomeScreen() {
   );
 
   useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+
+    const styleId = 'streamdrop-search-input-focus-reset';
+    if (document.getElementById(styleId)) return;
+
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+      #streamdrop-home-search,
+      #streamdrop-home-search:focus,
+      #streamdrop-home-search:focus-visible {
+        outline: none !important;
+        box-shadow: none !important;
+        -webkit-box-shadow: none !important;
+        -webkit-tap-highlight-color: transparent !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }, []);
+
+  useEffect(() => {
     if (!preferencesLoaded) return;
 
     const languageCodes = getSelectedLanguageCodes(selectedLanguages);
@@ -1185,6 +1206,7 @@ export default function HomeScreen() {
       >
         <Text style={styles.searchIcon}>Search</Text>
         <TextInput
+          nativeID="streamdrop-home-search"
           value={searchQuery}
           onBlur={() => setSearchFocused(false)}
           onChangeText={(value) => {
