@@ -1220,7 +1220,6 @@ export default function HomeScreen() {
         style={[styles.searchBar, searchFocused && styles.searchBarFocused]}
         onTouchStart={keepActiveFilterOpen}
       >
-        <Text style={styles.searchIcon}>Search</Text>
         <TextInput
           nativeID="streamdrop-home-search"
           value={searchQuery}
@@ -1230,7 +1229,7 @@ export default function HomeScreen() {
             setSearchQuery(value);
           }}
           onFocus={() => setSearchFocused(true)}
-          placeholder="Find a movie"
+          placeholder="Search movies"
           placeholderTextColor="#6B7280"
           returnKeyType="search"
           style={[
@@ -1248,7 +1247,7 @@ export default function HomeScreen() {
         />
         {searchQuery ? (
           <Pressable style={styles.searchClearButton} onPress={clearSearch}>
-            <Text style={styles.searchClearText}>Clear</Text>
+            <Text style={styles.searchClearText}>×</Text>
           </Pressable>
         ) : null}
       </View>
@@ -1596,39 +1595,33 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     flexDirection: 'row',
-    gap: 10,
     minHeight: 50,
     marginHorizontal: 16,
     marginBottom: 12,
-    paddingHorizontal: 12,
+    overflow: 'hidden',
   },
   searchBarFocused: {
     borderColor: '#EF233C',
-  },
-  searchIcon: {
-    color: '#EF233C',
-    fontSize: 12,
-    fontWeight: '900',
-    textTransform: 'uppercase',
   },
   searchInput: {
     color: '#FFFFFF',
     flex: 1,
     fontSize: 16,
     fontWeight: '700',
-    minHeight: 48,
+    minHeight: 50,
+    paddingHorizontal: 14,
   },
   searchClearButton: {
-    borderColor: '#3A1118',
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    alignItems: 'center',
+    height: 50,
+    justifyContent: 'center',
+    width: 46,
   },
   searchClearText: {
     color: '#EF233C',
-    fontSize: 11,
+    fontSize: 24,
     fontWeight: '900',
+    lineHeight: 28,
   },
   searchSection: {
     marginTop: 4,
