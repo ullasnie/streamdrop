@@ -367,9 +367,9 @@ const getFeedDateLabel = (movie: Movie) => {
 };
 
 const getSearchDateLabel = (movie: Movie) =>
-  movie.release_date
-    ? `Movie release ${formatDisplayDate(movie.release_date)}`
-    : 'Movie release unknown';
+  movie.ottReleaseDate
+    ? `Streaming ${formatDisplayDate(movie.ottReleaseDate)}`
+    : 'Streaming date unavailable';
 
 const getDateInRange = (dates: string[], range: DateRange) =>
   dates.find((date) => date >= range.startDate && date <= range.endDate) || '';
@@ -495,6 +495,35 @@ const enrichMovies = async (
   );
 };
 
+const enrichSearchMovies = async (
+  items: Movie[],
+  genreMap: Record<number, string>
+) =>
+  mapWithConcurrency(
+    items,
+    TMDB_METADATA_CONCURRENCY,
+    async (movie) => {
+      const region = getRegionCode(movie.original_language || 'en');
+      const [providerNames, releaseInfo] = await Promise.all([
+        getOttProviders(movie.id, region).catch(() => []),
+        getReleaseInfo(movie.id, region).catch(() => ({
+          certification: '',
+          ottReleaseDates: [],
+        })),
+      ]);
+
+      return {
+        ...movie,
+        providerNames,
+        certification: releaseInfo.certification,
+        ottReleaseDate: releaseInfo.ottReleaseDates[0] || '',
+        genreNames: (movie.genre_ids || [])
+          .map((id) => genreMap[id])
+          .filter(Boolean),
+      };
+    }
+  );
+
 export default function HomeScreen() {
   const homeFetchIdRef = useRef(0);
   const searchFetchIdRef = useRef(0);
@@ -580,12 +609,7 @@ export default function HomeScreen() {
           })
           .slice(0, TMDB_SEARCH_RESULT_LIMIT);
 
-        const enriched = candidates.map((movie: Movie) => ({
-          ...movie,
-          genreNames: (movie.genre_ids || [])
-            .map((id) => genreMap[id])
-            .filter(Boolean),
-        }));
+        const enriched = await enrichSearchMovies(candidates, genreMap);
         if (!isCurrentFetch()) return;
 
         setSearchResults(enriched);
