@@ -537,7 +537,7 @@ export default function HomeScreen() {
   };
 
   const fetchSearchResults = useCallback(
-    async (query: string, langs: string[], platformKeys: string[], genreKeys: string[]) => {
+    async (query: string) => {
       const fetchId = searchFetchIdRef.current + 1;
       searchFetchIdRef.current = fetchId;
       const isCurrentFetch = () => searchFetchIdRef.current === fetchId;
@@ -547,13 +547,6 @@ export default function HomeScreen() {
         setSearchError('');
 
         const genreMap = await getGenreMap();
-        const selectedLanguageCodes = getSelectedLanguageCodes(langs);
-        const selectedGenreIds = genreKeys
-          .filter((key) => key !== 'all')
-          .map(getGenreId)
-          .filter(Boolean);
-        const primaryLanguage = selectedLanguageCodes[0] || 'en';
-        const region = getRegionCode(primaryLanguage);
 
         const res = await axios.get('https://api.themoviedb.org/3/search/movie', {
           params: {
@@ -570,23 +563,17 @@ export default function HomeScreen() {
             seenIds.add(movie.id);
             return true;
           })
-          .filter((movie: Movie) =>
-            movie.original_language
-              ? selectedLanguageCodes.includes(movie.original_language)
-              : true
-          )
-          .filter(
-            (movie: Movie) =>
-              !selectedGenreIds.length ||
-              movie.genre_ids?.some((genreId) => selectedGenreIds.includes(genreId))
-          )
           .slice(0, TMDB_SEARCH_RESULT_LIMIT);
 
-        const enriched = await enrichMovies(candidates, region, genreMap);
-        const filtered = filterMoviesBySelectedProviders(enriched, platformKeys);
+        const enriched = candidates.map((movie: Movie) => ({
+          ...movie,
+          genreNames: (movie.genre_ids || [])
+            .map((id) => genreMap[id])
+            .filter(Boolean),
+        }));
         if (!isCurrentFetch()) return;
 
-        setSearchResults(filtered);
+        setSearchResults(enriched);
       } catch (error) {
         console.log('Search error:', error);
         if (!isCurrentFetch()) return;
@@ -997,22 +984,11 @@ export default function HomeScreen() {
     }
 
     const timeout = setTimeout(() => {
-      fetchSearchResults(
-        query,
-        selectedLanguages,
-        selectedPlatforms,
-        selectedGenres
-      );
+      fetchSearchResults(query);
     }, 350);
 
     return () => clearTimeout(timeout);
-  }, [
-    fetchSearchResults,
-    searchQuery,
-    selectedGenres,
-    selectedLanguages,
-    selectedPlatforms,
-  ]);
+  }, [fetchSearchResults, searchQuery]);
 
   const renderCard = (item: Movie, featured = false) => (
     <Pressable
