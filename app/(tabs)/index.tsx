@@ -356,6 +356,21 @@ const sortByPopularitySignal = (a: Movie, b: Movie) =>
 const getMovieDisplayDate = (movie: Movie) =>
   movie.ottReleaseDate || movie.release_date;
 
+const getFeedDateLabel = (movie: Movie) => {
+  if (movie.ottReleaseDate) {
+    return `Streaming ${formatDisplayDate(movie.ottReleaseDate)}`;
+  }
+
+  return movie.release_date
+    ? `Movie release ${formatDisplayDate(movie.release_date)}`
+    : 'Release date unknown';
+};
+
+const getSearchDateLabel = (movie: Movie) =>
+  movie.release_date
+    ? `Movie release ${formatDisplayDate(movie.release_date)}`
+    : 'Movie release unknown';
+
 const getDateInRange = (dates: string[], range: DateRange) =>
   dates.find((date) => date >= range.startDate && date <= range.endDate) || '';
 
@@ -1005,7 +1020,7 @@ export default function HomeScreen() {
       </Text>
 
       <Text style={styles.date}>
-        {formatDisplayDate(getMovieDisplayDate(item))}
+        {getFeedDateLabel(item)}
       </Text>
 
       {item.providerNames?.[0] && (
@@ -1154,7 +1169,7 @@ export default function HomeScreen() {
           {item.title}
         </Text>
         <Text style={styles.searchDate}>
-          {formatDisplayDate(getMovieDisplayDate(item)) || 'Release date unknown'}
+          {getSearchDateLabel(item)}
         </Text>
         {item.providerNames?.[0] && (
           <Text style={styles.providerPill} numberOfLines={1}>
