@@ -56,8 +56,8 @@ export default function PrivacyScreen() {
       ))}
 
       <Text style={styles.tmdbNotice}>
-        This product uses the TMDB API but is not endorsed, certified, or
-        otherwise approved by TMDB.
+        This product uses the TMDB API but is not endorsed or certified by
+        TMDB.
       </Text>
 
       <Pressable style={styles.supportLink} onPress={() => router.push('/support')}>

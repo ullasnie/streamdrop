@@ -14,7 +14,10 @@
     "newArchEnabled": true,
     "ios": {
       "bundleIdentifier": "com.ullas.streamdrop",
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "web": {
       "output": "static",

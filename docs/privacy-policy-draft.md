@@ -14,7 +14,7 @@ StreamDrop does not currently require an account.
 
 StreamDrop retrieves movie metadata, images, ratings, release dates, and streaming-provider information from TMDB through a StreamDrop server hosted by Vercel. TMDB and Vercel may process standard network information, such as your IP address and request details, to provide and secure their services.
 
-This product uses the TMDB API but is not endorsed, certified, or otherwise approved by TMDB.
+This product uses the TMDB API but is not endorsed or certified by TMDB.
 
 ## Anonymous Usage Counts
 

@@ -428,8 +428,8 @@ export default function SettingsScreen() {
           contentFit="contain"
         />
         <Text style={styles.notice}>
-          This product uses the TMDB API but is not endorsed, certified, or
-          otherwise approved by TMDB.
+          This product uses the TMDB API but is not endorsed or certified by
+          TMDB.
         </Text>
         <Text style={styles.complianceNote}>
           TMDB data and images require attribution. Commercial use requires a
