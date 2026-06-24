@@ -1,5 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
@@ -14,8 +13,9 @@ import {
 } from 'react-native';
 
 import { emitWatchlistUpdated } from '../constants/watchlist-events';
+import { trackEvent } from '../constants/analytics';
+import { getTmdb } from '../constants/tmdb-api';
 
-const TMDB_API_KEY = '92b45ae5994028d3786552aad05e5a4d';
 const DETAILS_POSTER_WIDTH = Platform.OS === 'web' ? 260 : 300;
 
 const formatDisplayDate = (value: string) => {
@@ -85,9 +85,7 @@ export default function DetailsScreen() {
       if (!Number.isFinite(id)) return;
 
       try {
-        const res = await axios.get(`https://api.themoviedb.org/3/movie/${id}`, {
-          params: { api_key: TMDB_API_KEY },
-        });
+        const res = await getTmdb(`movie/${id}`);
         setRuntime(res.data.runtime || null);
       } catch (error) {
         console.log('Runtime fetch error:', error);
@@ -144,6 +142,7 @@ export default function DetailsScreen() {
         await AsyncStorage.setItem('watchlist', JSON.stringify(watchlist));
         setIsSaved(true);
         emitWatchlistUpdated();
+        void trackEvent('watchlist_added');
         Alert.alert('Saved', 'Added to watchlist');
       } else {
         setIsSaved(true);

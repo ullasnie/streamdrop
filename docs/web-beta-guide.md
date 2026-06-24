@@ -1,6 +1,8 @@
-# StreamDrop Web Beta Guide
+# StreamDrop Vercel Infrastructure Guide
 
-Web beta is the fastest way to share StreamDrop with iOS testers before paying for Apple Developer/TestFlight.
+StreamDrop is an iPhone-only product. The Vercel deployment exists to host the
+TMDB proxy and public App Store support pages. The web build is not a supported
+consumer version of StreamDrop.
 
 ## Local Production Build
 
@@ -10,41 +12,17 @@ npm run build:web
 
 Expo exports the web app to `dist`.
 
-## Recommended Hosting
+## Hosting
 
-Use Vercel or Netlify.
-
-### Vercel
+Use the existing Vercel project.
 
 - Framework preset: Other
 - Build command: `npm run build:web`
 - Output directory: `dist`
-- The project includes `vercel.json`, so Vercel can also read these settings automatically.
+- The project includes `vercel.json`, so Vercel reads these settings automatically.
+- Public privacy policy: `https://streamdrop-eight.vercel.app/privacy`
+- Public support page: `https://streamdrop-eight.vercel.app/support`
+- TMDB proxy: `https://streamdrop-eight.vercel.app/api/tmdb`
 
-### Netlify
-
-- Build command: `npm run build:web`
-- Publish directory: `dist`
-
-## Beta Tester Instructions
-
-Send testers the web URL and ask them to open it in Safari on iPhone.
-
-Ask them to test:
-
-- Home loads weekend releases.
-- Filters are easy to tap.
-- Details page is clear.
-- Save/remove watchlist works.
-- Watchlist item opens details.
-- Settings feedback opens an email draft.
-
-Do not ask web beta testers to test Friday alerts. The web beta hides notification setup because iPhone Safari notification behavior is different from the future native iOS app.
-
-## Web Limitations
-
-- Friday notifications are hidden in the web beta because they should be tested in a native iOS build.
-- Exit app behavior is native-only.
-- App icon and splash are not the same as a TestFlight build.
-
-Use web beta to validate the product idea and UI flow. Move to TestFlight when users confirm the app is worth native beta distribution.
+Do not advertise the Vercel root URL as a web app. Product testing should happen
+through an iPhone development build or TestFlight.

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 
 import { emitWatchlistUpdated } from '../../constants/watchlist-events';
+import { trackEvent } from '../../constants/analytics';
 
 const SCREEN_TOP_PADDING = Platform.OS === 'web' ? 34 : 70;
 const POSTER_WIDTH = Platform.OS === 'web' ? 180 : 210;
@@ -65,9 +66,11 @@ export default function WatchlistScreen() {
     setMovies(updated);
     await AsyncStorage.setItem('watchlist', JSON.stringify(updated));
     emitWatchlistUpdated();
+    void trackEvent('watchlist_removed');
   };
 
   const openDetails = (movie: SavedMovie) => {
+    void trackEvent('movie_opened');
     router.push({
       pathname: '/details',
       params: {
@@ -86,6 +89,7 @@ export default function WatchlistScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      void trackEvent('watchlist_viewed');
       loadWatchlist();
     }, [])
   );

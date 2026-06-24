@@ -3,6 +3,10 @@
     "name": "StreamDrop",
     "slug": "streamdrop",
     "version": "1.0.0",
+    "platforms": [
+      "ios",
+      "web"
+    ],
     "orientation": "portrait",
     "icon": "./assets/images/streamdrop-app-icon.png",
     "scheme": "streamdrop",
@@ -10,18 +14,7 @@
     "newArchEnabled": true,
     "ios": {
       "bundleIdentifier": "com.ullas.streamdrop",
-      "supportsTablet": true
-    },
-    "android": {
-      "package": "com.ullas.streamdrop",
-      "adaptiveIcon": {
-        "backgroundColor": "#0F1115",
-        "foregroundImage": "./assets/images/streamdrop-app-icon.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
-      },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "supportsTablet": false
     },
     "web": {
       "output": "static",
@@ -40,7 +33,9 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image as ExpoImage } from 'expo-image';
 import * as Notifications from 'expo-notifications';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
   Alert,
@@ -16,13 +16,21 @@ import {
   View,
 } from 'react-native';
 
+import {
+  ANALYTICS_ENABLED_KEY,
+  trackEvent,
+} from '../../constants/analytics';
+
 const PREF_LANGUAGE_KEY = 'preferredLanguageV3';
 const PREF_PLATFORM_KEY = 'preferredPlatform';
 const PREF_GENRE_KEY = 'preferredGenre';
+const PREF_HOME_LANGUAGES_KEY = 'homeSelectedLanguagesV2';
+const PREF_HOME_PLATFORMS_KEY = 'homeSelectedPlatformsV1';
+const PREF_HOME_GENRES_KEY = 'homeSelectedGenresV1';
 const PREF_RELEASE_MONTHS_KEY = 'releaseWindowMonths';
 const ALERTS_ENABLED_KEY = 'alertsEnabled';
 const FRIDAY_NOTIFICATION_ID_KEY = 'fridayNotificationId';
-const FEEDBACK_EMAIL = 'ullasnie@gmail.com';
+const FEEDBACK_EMAIL = 'streamdrop.26@gmail.com';
 const SCREEN_TOP_PADDING = Platform.OS === 'web' ? 34 : 70;
 const tmdbLogo = require('../../assets/images/tmdb-logo.svg');
 
@@ -65,33 +73,93 @@ const releaseWindows = [
 
 type ActiveSetting = 'language' | 'platform' | 'genre' | 'window' | null;
 
+const parseStoredList = (value: string | null, fallback: string[]) => {
+  const parsed = value?.split(',').map((item) => item.trim()).filter(Boolean);
+  return parsed?.length ? parsed : fallback;
+};
+
+const toggleAllSelection = (selected: string[], key: string) => {
+  if (key === 'all') return ['all'];
+
+  const withoutAll = selected.filter((item) => item !== 'all');
+  const next = withoutAll.includes(key)
+    ? withoutAll.filter((item) => item !== key)
+    : [...withoutAll, key];
+
+  return next.length ? next : ['all'];
+};
+
+const formatSelectedLabels = (
+  selected: string[],
+  options: { label: string; key?: string; code?: string }[]
+) => {
+  const labels = selected
+    .map(
+      (value) =>
+        options.find((item) => item.key === value || item.code === value)?.label
+    )
+    .filter(Boolean);
+
+  if (labels.length <= 1) return labels[0] || 'All';
+  if (labels.length === 2) return labels.join(', ');
+
+  return `${labels[0]}, ${labels[1]} +${labels.length - 2}`;
+};
+
 export default function SettingsScreen() {
   const [alertsEnabled, setAlertsEnabled] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState('all');
-  const [selectedPlatform, setSelectedPlatform] = useState('all');
-  const [selectedGenre, setSelectedGenre] = useState('all');
+  const [analyticsEnabled, setAnalyticsEnabled] = useState(true);
+  const [selectedLanguages, setSelectedLanguages] = useState(['all']);
+  const [selectedPlatforms, setSelectedPlatforms] = useState(['all']);
+  const [selectedGenres, setSelectedGenres] = useState(['all']);
   const [releaseWindowMonths, setReleaseWindowMonths] = useState(3);
   const [activeSetting, setActiveSetting] = useState<ActiveSetting>(null);
 
   const loadSettings = useCallback(async () => {
-    const [alertVal, languageVal, platformVal, genreVal, monthsVal] =
-      await Promise.all([
-        AsyncStorage.getItem(ALERTS_ENABLED_KEY),
-        AsyncStorage.getItem(PREF_LANGUAGE_KEY),
-        AsyncStorage.getItem(PREF_PLATFORM_KEY),
-        AsyncStorage.getItem(PREF_GENRE_KEY),
-        AsyncStorage.getItem(PREF_RELEASE_MONTHS_KEY),
-      ]);
+    const entries = await AsyncStorage.multiGet([
+      ALERTS_ENABLED_KEY,
+      ANALYTICS_ENABLED_KEY,
+      PREF_HOME_LANGUAGES_KEY,
+      PREF_HOME_PLATFORMS_KEY,
+      PREF_HOME_GENRES_KEY,
+      PREF_LANGUAGE_KEY,
+      PREF_PLATFORM_KEY,
+      PREF_GENRE_KEY,
+      PREF_RELEASE_MONTHS_KEY,
+    ]);
+    const values = Object.fromEntries(entries);
+    const languagesValue = parseStoredList(
+      values[PREF_HOME_LANGUAGES_KEY],
+      values[PREF_LANGUAGE_KEY] ? [values[PREF_LANGUAGE_KEY]] : ['all']
+    );
+    const platformsValue = parseStoredList(
+      values[PREF_HOME_PLATFORMS_KEY],
+      values[PREF_PLATFORM_KEY] ? [values[PREF_PLATFORM_KEY]] : ['all']
+    );
+    const genresValue = parseStoredList(
+      values[PREF_HOME_GENRES_KEY],
+      values[PREF_GENRE_KEY] ? [values[PREF_GENRE_KEY]] : ['all']
+    );
 
-    setAlertsEnabled(alertVal === 'true');
-    if (languageVal) setSelectedLanguage(languageVal);
-    if (platformVal) setSelectedPlatform(platformVal);
-    if (genreVal) setSelectedGenre(genreVal);
-    if (monthsVal) setReleaseWindowMonths(Number(monthsVal) || 3);
+    setAlertsEnabled(values[ALERTS_ENABLED_KEY] === 'true');
+    setAnalyticsEnabled(values[ANALYTICS_ENABLED_KEY] !== 'false');
+    setSelectedLanguages(languagesValue);
+    setSelectedPlatforms(platformsValue);
+    setSelectedGenres(genresValue);
+    if (values[PREF_RELEASE_MONTHS_KEY]) {
+      setReleaseWindowMonths(Number(values[PREF_RELEASE_MONTHS_KEY]) || 3);
+    }
+
+    await AsyncStorage.multiSet([
+      [PREF_HOME_LANGUAGES_KEY, languagesValue.join(',')],
+      [PREF_HOME_PLATFORMS_KEY, platformsValue.join(',')],
+      [PREF_HOME_GENRES_KEY, genresValue.join(',')],
+    ]);
   }, []);
 
   useFocusEffect(
     useCallback(() => {
+      void trackEvent('settings_viewed');
       loadSettings();
     }, [loadSettings])
   );
@@ -137,6 +205,7 @@ export default function SettingsScreen() {
   };
 
   const toggleFridayAlerts = async (enabled: boolean) => {
+    void trackEvent('alerts_changed');
     if (enabled) {
       await enableFridayAlerts();
       return;
@@ -145,22 +214,27 @@ export default function SettingsScreen() {
     await disableFridayAlerts();
   };
 
+  const toggleAnalytics = async (enabled: boolean) => {
+    setAnalyticsEnabled(enabled);
+    await AsyncStorage.setItem(ANALYTICS_ENABLED_KEY, String(enabled));
+  };
+
   const selectLanguage = async (code: string) => {
-    setSelectedLanguage(code);
-    setActiveSetting(null);
-    await AsyncStorage.setItem(PREF_LANGUAGE_KEY, code);
+    const next = toggleAllSelection(selectedLanguages, code);
+    setSelectedLanguages(next);
+    await AsyncStorage.setItem(PREF_HOME_LANGUAGES_KEY, next.join(','));
   };
 
   const selectPlatform = async (key: string) => {
-    setSelectedPlatform(key);
-    setActiveSetting(null);
-    await AsyncStorage.setItem(PREF_PLATFORM_KEY, key);
+    const next = toggleAllSelection(selectedPlatforms, key);
+    setSelectedPlatforms(next);
+    await AsyncStorage.setItem(PREF_HOME_PLATFORMS_KEY, next.join(','));
   };
 
   const selectGenre = async (key: string) => {
-    setSelectedGenre(key);
-    setActiveSetting(null);
-    await AsyncStorage.setItem(PREF_GENRE_KEY, key);
+    const next = toggleAllSelection(selectedGenres, key);
+    setSelectedGenres(next);
+    await AsyncStorage.setItem(PREF_HOME_GENRES_KEY, next.join(','));
   };
 
   const selectReleaseWindow = async (months: number) => {
@@ -194,12 +268,9 @@ export default function SettingsScreen() {
     Linking.openURL(`mailto:${FEEDBACK_EMAIL}?subject=${subject}&body=${body}`);
   };
 
-  const languageLabel =
-    languages.find((item) => item.code === selectedLanguage)?.label || 'All';
-  const platformLabel =
-    platforms.find((item) => item.key === selectedPlatform)?.label || 'All';
-  const genreLabel =
-    genres.find((item) => item.key === selectedGenre)?.label || 'All';
+  const languageLabel = formatSelectedLabels(selectedLanguages, languages);
+  const platformLabel = formatSelectedLabels(selectedPlatforms, platforms);
+  const genreLabel = formatSelectedLabels(selectedGenres, genres);
   const releaseWindowLabel =
     releaseWindows.find((item) => item.value === releaseWindowMonths)?.label ||
     '3 Months';
@@ -209,21 +280,21 @@ export default function SettingsScreen() {
       ? languages.map((item) => ({
           key: item.code,
           label: item.label,
-          selected: selectedLanguage === item.code,
+          selected: selectedLanguages.includes(item.code),
           onPress: () => selectLanguage(item.code),
         }))
       : activeSetting === 'platform'
         ? platforms.map((item) => ({
             key: item.key,
             label: item.label,
-            selected: selectedPlatform === item.key,
+            selected: selectedPlatforms.includes(item.key),
             onPress: () => selectPlatform(item.key),
           }))
         : activeSetting === 'genre'
           ? genres.map((item) => ({
               key: item.key,
               label: item.label,
-              selected: selectedGenre === item.key,
+              selected: selectedGenres.includes(item.key),
               onPress: () => selectGenre(item.key),
             }))
           : activeSetting === 'window'
@@ -293,11 +364,31 @@ export default function SettingsScreen() {
         </View>
       )}
 
-      <Text style={styles.section}>Defaults</Text>
+      {Platform.OS === 'ios' && (
+        <View style={styles.panel}>
+          <View style={styles.row}>
+            <View style={styles.rowText}>
+              <Text style={styles.label}>Share anonymous usage counts</Text>
+              <Text style={styles.description}>
+                Sends only feature counters. No identity, search text, location,
+                or device identifier.
+              </Text>
+            </View>
+            <Switch
+              value={analyticsEnabled}
+              onValueChange={toggleAnalytics}
+              trackColor={{ false: '#2A2E36', true: '#3A1118' }}
+              thumbColor={analyticsEnabled ? '#EF233C' : '#9CA3AF'}
+            />
+          </View>
+        </View>
+      )}
+
+      <Text style={styles.section}>Home Filters</Text>
       <View style={styles.defaultsGrid}>
-        {renderSettingCard('Default Language', languageLabel, 'language')}
-        {renderSettingCard('Default Streaming', platformLabel, 'platform')}
-        {renderSettingCard('Default Genre', genreLabel, 'genre')}
+        {renderSettingCard('Language', languageLabel, 'language')}
+        {renderSettingCard('Streaming', platformLabel, 'platform')}
+        {renderSettingCard('Genre', genreLabel, 'genre')}
         {renderSettingCard('Release Window', releaseWindowLabel, 'window')}
       </View>
 
@@ -306,10 +397,10 @@ export default function SettingsScreen() {
           <View style={styles.settingPanelHeader}>
             <Text style={styles.settingPanelTitle}>
               {activeSetting === 'platform'
-                ? 'Default Streaming'
+                ? 'Streaming'
                 : activeSetting === 'window'
                   ? 'Release Window'
-                  : `Default ${activeSetting}`}
+                  : activeSetting[0].toUpperCase() + activeSetting.slice(1)}
             </Text>
             <Pressable onPress={() => setActiveSetting(null)}>
               <Text style={styles.settingPanelClose}>Done</Text>
@@ -381,6 +472,26 @@ export default function SettingsScreen() {
       </View>
 
       <Text style={styles.section}>App</Text>
+      <Pressable
+        style={styles.feedbackButton}
+        onPress={() => router.push('/support')}
+      >
+        <Text style={styles.feedbackText}>Help & Support</Text>
+      </Pressable>
+      <Text style={styles.feedbackHint}>
+        Troubleshooting and contact information for StreamDrop.
+      </Text>
+
+      <Pressable
+        style={styles.feedbackButton}
+        onPress={() => router.push('/privacy')}
+      >
+        <Text style={styles.feedbackText}>Privacy Policy</Text>
+      </Pressable>
+      <Text style={styles.feedbackHint}>
+        See how StreamDrop handles local preferences and network requests.
+      </Text>
+
       <Pressable style={styles.feedbackButton} onPress={sendFeedback}>
         <Text style={styles.feedbackText}>Send Beta Feedback</Text>
       </Pressable>

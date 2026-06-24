@@ -2,6 +2,14 @@
   "buildCommand": "npm run build:web",
   "outputDirectory": "dist",
   "cleanUrls": true,
+  "functions": {
+    "api/analytics.ts": {
+      "maxDuration": 10
+    },
+    "api/tmdb.ts": {
+      "maxDuration": 10
+    }
+  },
   "rewrites": [
     {
       "source": "/(.*)",

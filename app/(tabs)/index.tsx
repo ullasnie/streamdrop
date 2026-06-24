@@ -1,5 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
 import * as Notifications from 'expo-notifications';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -15,6 +14,9 @@ import {
   TextInput,
   View,
 } from 'react-native';
+
+import { getTmdb } from '../../constants/tmdb-api';
+import { trackEvent } from '../../constants/analytics';
 
 type Movie = {
   id: number;
@@ -42,8 +44,6 @@ type SavedMovie = {
 
 type ActiveFilter = 'language' | 'platform' | 'genre' | null;
 type DateRange = { startDate: string; endDate: string };
-
-const TMDB_API_KEY = '92b45ae5994028d3786552aad05e5a4d';
 
 const languages = [
   { label: 'All', code: 'all' },
@@ -267,9 +267,7 @@ const getGenreId = (key: string) =>
 const getGenreMap = async (): Promise<Record<number, string>> => {
   if (genreMapCache) return genreMapCache;
 
-  const res = await axios.get('https://api.themoviedb.org/3/genre/movie/list', {
-    params: { api_key: TMDB_API_KEY },
-  });
+  const res = await getTmdb('genre/movie/list');
 
   const nextGenreMap = (res.data.genres || []).reduce(
     (map: Record<number, string>, genre: { id: number; name: string }) => {
@@ -411,10 +409,7 @@ const getOttProviders = async (movieId: number, region: string) => {
   const cached = providerCache.get(cacheKey);
   if (cached) return cached;
 
-  const res = await axios.get(
-    `https://api.themoviedb.org/3/movie/${movieId}/watch/providers`,
-    { params: { api_key: TMDB_API_KEY } }
-  );
+  const res = await getTmdb(`movie/${movieId}/watch/providers`);
 
   const providers = (
     res.data.results?.[region]?.flatrate?.map(
@@ -431,10 +426,7 @@ const getReleaseInfo = async (movieId: number, region: string) => {
   const cached = releaseInfoCache.get(cacheKey);
   if (cached !== undefined) return cached;
 
-  const res = await axios.get(
-    `https://api.themoviedb.org/3/movie/${movieId}/release_dates`,
-    { params: { api_key: TMDB_API_KEY } }
-  );
+  const res = await getTmdb(`movie/${movieId}/release_dates`);
 
   const regionRelease = res.data.results?.find(
     (item: { iso_3166_1: string }) => item.iso_3166_1 === region
@@ -558,6 +550,7 @@ export default function HomeScreen() {
 
   const openDetails = (item: Movie) => {
     dismissActiveFilter();
+    void trackEvent('movie_opened');
     router.push({
       pathname: '/details',
       params: {
@@ -592,13 +585,11 @@ export default function HomeScreen() {
 
         const genreMap = await getGenreMap();
 
-        const res = await axios.get('https://api.themoviedb.org/3/search/movie', {
-          params: {
-            api_key: TMDB_API_KEY,
-            include_adult: false,
-            query,
-          },
+        const res = await getTmdb('search/movie', {
+          include_adult: false,
+          query,
         });
+        void trackEvent('search_used');
 
         const seenIds = new Set<number>();
         const candidates = (res.data.results || [])
@@ -661,10 +652,7 @@ export default function HomeScreen() {
       const similarResults = await Promise.all(
         savedWithIds.map(async (movie) => {
           try {
-            const res = await axios.get(
-              `https://api.themoviedb.org/3/movie/${movie.id}/similar`,
-              { params: { api_key: TMDB_API_KEY } }
-            );
+            const res = await getTmdb(`movie/${movie.id}/similar`);
             return res.data.results || [];
           } catch (error) {
             console.log('Similar movies error:', error);
@@ -732,7 +720,6 @@ export default function HomeScreen() {
         .filter(Boolean);
 
       const params: any = {
-        api_key: TMDB_API_KEY,
         sort_by: 'release_date.desc',
         with_original_language: lang,
         watch_region: region,
@@ -751,10 +738,7 @@ export default function HomeScreen() {
         params.with_genres = genreIds.join('|');
       }
 
-      const res = await axios.get(
-        'https://api.themoviedb.org/3/discover/movie',
-        { params }
-      );
+      const res = await getTmdb('discover/movie', params);
 
       const discoverResults = (res.data.results || []).slice(
         0,
@@ -922,22 +906,26 @@ export default function HomeScreen() {
     const next = toggleLanguageSelection(selectedLanguages, code);
     setSelectedLanguages(next);
     await AsyncStorage.setItem(PREF_HOME_LANGUAGES_KEY, next.join(','));
+    void trackEvent('filter_changed');
   };
 
   const handlePlatformSelect = async (key: string) => {
     const next = toggleAllSelection(selectedPlatforms, key);
     setSelectedPlatforms(next);
     await AsyncStorage.setItem(PREF_HOME_PLATFORMS_KEY, next.join(','));
+    void trackEvent('filter_changed');
   };
 
   const handleGenreSelect = async (key: string) => {
     const next = toggleAllSelection(selectedGenres, key);
     setSelectedGenres(next);
     await AsyncStorage.setItem(PREF_HOME_GENRES_KEY, next.join(','));
+    void trackEvent('filter_changed');
   };
 
   const refreshReleases = () => {
     dismissActiveFilter();
+    void trackEvent('refresh_tapped');
     const languageCodes = getSelectedLanguageCodes(selectedLanguages);
     fetchHomeSections(
       languageCodes,
@@ -950,6 +938,7 @@ export default function HomeScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      void trackEvent('home_viewed');
       loadPreferences();
     }, [loadPreferences])
   );
@@ -1102,10 +1091,13 @@ export default function HomeScreen() {
     selectedGenres.includes('all')
       ? `${platformLabel} Releases: Last ${releaseWindowMonths} Months`
       : `${genreLabel} on ${platformLabel}: Last ${releaseWindowMonths} Months`;
-  const weekendEmptyText =
-    selectedGenres.includes('all')
-      ? `No ${languageLabel} weekend drops found on ${platformLabel}.`
-      : `No ${languageLabel} ${genreLabel.toLowerCase()} drops found on ${platformLabel} this weekend.`;
+  const hasActiveFilters =
+    !selectedLanguages.includes('all') ||
+    !selectedPlatforms.includes('all') ||
+    !selectedGenres.includes('all');
+  const weekendEmptyText = hasActiveFilters
+    ? 'No weekend drops match your filters. Try changing your filters.'
+    : 'No weekend drops found.';
   const recentEmptyText =
     selectedGenres.includes('all')
       ? `No ${languageLabel} OTT releases found for this window.`

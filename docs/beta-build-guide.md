@@ -1,4 +1,4 @@
-# StreamDrop Beta Build Guide
+# StreamDrop iPhone Beta Build Guide
 
 ## One-Time Setup
 
@@ -15,31 +15,25 @@ npx eas login
 npx eas init
 ```
 
-3. Confirm native identifiers before the first beta build.
+3. Confirm the native identifier before the first beta build.
 
 - iOS bundle id: `com.ullas.streamdrop`
-- Android package: `com.ullas.streamdrop`
+- iPhone only: iPad support is disabled.
 
-Changing these after uploading to Apple or Google can create extra store work, so lock them before external beta.
+Changing the bundle ID after uploading to Apple can create extra store work, so lock it before external beta.
 
-## Internal Beta Builds
+## TestFlight Beta Build
 
-Android APK for direct install:
-
-```bash
-npx eas build --profile preview --platform android
-```
-
-iOS internal/TestFlight build:
+Create the iPhone build:
 
 ```bash
 npx eas build --profile preview --platform ios
 ```
 
-Build both platforms:
+Submit the build to App Store Connect and TestFlight:
 
 ```bash
-npx eas build --profile preview --platform all
+npx eas submit --platform ios
 ```
 
 ## Before Sharing
@@ -47,6 +41,7 @@ npx eas build --profile preview --platform all
 - Replace any remaining placeholder copy.
 - Test feedback email from Settings.
 - Test Friday notifications on a development or EAS build, not only Expo Go.
-- Confirm app icon and splash screen on a real device.
+- Confirm app icon and splash screen on a real iPhone.
 - Confirm TMDB attribution is visible in Settings.
-- Review `docs/privacy-policy-draft.md` and host the final policy URL before store submission.
+- Confirm the public privacy policy loads at `https://streamdrop-eight.vercel.app/privacy`.
+- Confirm the public support page is ready before store submission.
