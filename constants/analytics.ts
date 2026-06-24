@@ -17,19 +17,39 @@ export type AnalyticsEvent =
   | 'filter_changed'
   | 'alerts_changed';
 
-export const trackEvent = async (event: AnalyticsEvent) => {
-  if (__DEV__ || Platform.OS !== 'ios') return;
+export type FeedbackEvent =
+  | 'feedback_useful'
+  | 'feedback_useful_okay'
+  | 'feedback_useful_not_yet'
+  | 'feedback_discovery_easy'
+  | 'feedback_discovery_somewhat'
+  | 'feedback_discovery_hard'
+  | 'feedback_accuracy_good'
+  | 'feedback_accuracy_mostly'
+  | 'feedback_accuracy_needs_work';
 
-  const analyticsEnabled = await AsyncStorage.getItem(ANALYTICS_ENABLED_KEY);
-  if (analyticsEnabled === 'false') return;
+const sendEvent = async (event: AnalyticsEvent | FeedbackEvent) => {
+  if (__DEV__) return true;
+  if (Platform.OS !== 'ios') return false;
 
   try {
-    await fetch(ANALYTICS_URL, {
+    const response = await fetch(ANALYTICS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ event }),
     });
+    return response.ok;
   } catch {
-    // Analytics must never interrupt the app experience.
+    return false;
   }
 };
+
+export const trackEvent = async (event: AnalyticsEvent) => {
+  if (__DEV__ || Platform.OS !== 'ios') return;
+  const analyticsEnabled = await AsyncStorage.getItem(ANALYTICS_ENABLED_KEY);
+  if (analyticsEnabled === 'false') return;
+
+  await sendEvent(event);
+};
+
+export const submitFeedbackEvent = (event: FeedbackEvent) => sendEvent(event);

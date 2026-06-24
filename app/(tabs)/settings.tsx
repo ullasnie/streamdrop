@@ -30,7 +30,6 @@ const PREF_HOME_GENRES_KEY = 'homeSelectedGenresV1';
 const PREF_RELEASE_MONTHS_KEY = 'releaseWindowMonths';
 const ALERTS_ENABLED_KEY = 'alertsEnabled';
 const FRIDAY_NOTIFICATION_ID_KEY = 'fridayNotificationId';
-const FEEDBACK_EMAIL = 'streamdrop.26@gmail.com';
 const SCREEN_TOP_PADDING = Platform.OS === 'web' ? 34 : 70;
 const tmdbLogo = require('../../assets/images/tmdb-logo.svg');
 
@@ -259,15 +258,6 @@ export default function SettingsScreen() {
     Linking.openURL(url);
   };
 
-  const sendFeedback = () => {
-    const subject = encodeURIComponent('StreamDrop beta feedback');
-    const body = encodeURIComponent(
-      'What worked?\n\nWhat felt confusing?\n\nAny missing OTT releases?\n\nDevice:\n'
-    );
-
-    Linking.openURL(`mailto:${FEEDBACK_EMAIL}?subject=${subject}&body=${body}`);
-  };
-
   const languageLabel = formatSelectedLabels(selectedLanguages, languages);
   const platformLabel = formatSelectedLabels(selectedPlatforms, platforms);
   const genreLabel = formatSelectedLabels(selectedGenres, genres);
@@ -492,11 +482,14 @@ export default function SettingsScreen() {
         See how StreamDrop handles local preferences and network requests.
       </Text>
 
-      <Pressable style={styles.feedbackButton} onPress={sendFeedback}>
-        <Text style={styles.feedbackText}>Send Beta Feedback</Text>
+      <Pressable
+        style={styles.feedbackButton}
+        onPress={() => router.push('/feedback')}
+      >
+        <Text style={styles.feedbackText}>Beta Feedback</Text>
       </Pressable>
       <Text style={styles.feedbackHint}>
-        Opens an email draft for release misses, bugs, or quick notes.
+        Answer three quick questions in the app. Each answer saves immediately.
       </Text>
 
       <Pressable style={styles.exitButton} onPress={exitApp}>

@@ -9,6 +9,15 @@ const ALLOWED_EVENTS = new Set([
   'refresh_tapped',
   'filter_changed',
   'alerts_changed',
+  'feedback_useful',
+  'feedback_useful_okay',
+  'feedback_useful_not_yet',
+  'feedback_discovery_easy',
+  'feedback_discovery_somewhat',
+  'feedback_discovery_hard',
+  'feedback_accuracy_good',
+  'feedback_accuracy_mostly',
+  'feedback_accuracy_needs_work',
 ]);
 
 export default async function handler(request: any, response: any) {

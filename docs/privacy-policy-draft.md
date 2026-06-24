@@ -26,7 +26,9 @@ If enabled, StreamDrop may schedule a weekly Friday reminder on your device. You
 
 ## Feedback
 
-If you send beta feedback by email, your email app may share your email address and any details you include in the message.
+The in-app beta questions send only the selected answer as an aggregate count. No written response or personal information is attached.
+
+If you send detailed feedback by email, your email app may share your email address and any details you include in the message.
 
 ## Data We Do Not Request
 
