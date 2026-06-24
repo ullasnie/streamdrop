@@ -4,8 +4,6 @@ import * as Notifications from 'expo-notifications';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
-  Alert,
-  BackHandler,
   Linking,
   Platform,
   Pressable,
@@ -240,18 +238,6 @@ export default function SettingsScreen() {
     setReleaseWindowMonths(months);
     setActiveSetting(null);
     await AsyncStorage.setItem(PREF_RELEASE_MONTHS_KEY, String(months));
-  };
-
-  const exitApp = () => {
-    if (Platform.OS === 'android') {
-      BackHandler.exitApp();
-      return;
-    }
-
-    Alert.alert(
-      'Exit StreamDrop',
-      'Use the Home gesture or app switcher to leave StreamDrop on iOS.'
-    );
   };
 
   const openUrl = (url: string) => {
@@ -492,12 +478,6 @@ export default function SettingsScreen() {
         Answer three quick questions in the app. Each answer saves immediately.
       </Text>
 
-      <Pressable style={styles.exitButton} onPress={exitApp}>
-        <Text style={styles.exitText}>Exit StreamDrop</Text>
-      </Pressable>
-      <Text style={styles.exitHint}>
-        Closes the app on Android. iOS controls app exit from the system.
-      </Text>
     </ScrollView>
   );
 }
@@ -708,28 +688,6 @@ const styles = StyleSheet.create({
     color: '#EF233C',
     fontSize: 12,
     fontWeight: '800',
-  },
-  exitButton: {
-    alignItems: 'center',
-    borderColor: '#4A1D24',
-    borderRadius: 8,
-    borderWidth: 1,
-    height: 50,
-    justifyContent: 'center',
-    marginHorizontal: 16,
-    marginTop: 14,
-  },
-  exitText: {
-    color: '#EF233C',
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  exitHint: {
-    color: '#6B7280',
-    fontSize: 12,
-    lineHeight: 18,
-    marginHorizontal: 16,
-    marginTop: 8,
   },
   feedbackButton: {
     alignItems: 'center',

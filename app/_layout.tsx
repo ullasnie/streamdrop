@@ -8,7 +8,6 @@ export default function RootLayout() {
       <Stack.Screen name="feedback" />
       <Stack.Screen name="privacy" />
       <Stack.Screen name="support" />
-      <Stack.Screen name="modal" />
     </Stack>
   );
 }
