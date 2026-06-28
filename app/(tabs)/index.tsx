@@ -82,13 +82,13 @@ const platforms = [
     label: 'Apple TV',
     key: 'apple-tv',
     providerId: 350,
-    providerNames: ['Apple TV', 'Apple TV Plus', 'Apple TV Amazon Channel'],
+    providerNames: ['Apple TV', 'Apple TV Plus'],
   },
   {
     label: 'HBO Max',
     key: 'hbo-max',
     providerId: 1899,
-    providerNames: ['Max', 'HBO Max', 'Max Amazon Channel'],
+    providerNames: ['Max', 'HBO Max'],
   },
 ];
 
@@ -225,18 +225,9 @@ const getAllowedProviderNames = (platformKeys: string[]) => {
 const providerMatches = (providerName: string, allowedNames: string[]) => {
   const normalizedProvider = normalizeProviderName(providerName);
 
-  return allowedNames.some((allowedName) => {
-    const normalizedAllowed = normalizeProviderName(allowedName);
-    if (normalizedAllowed.length <= 3) {
-      return normalizedProvider === normalizedAllowed;
-    }
-
-    return (
-      normalizedProvider === normalizedAllowed ||
-      normalizedProvider.includes(normalizedAllowed) ||
-      normalizedAllowed.includes(normalizedProvider)
-    );
-  });
+  return allowedNames.some(
+    (allowedName) => normalizedProvider === normalizeProviderName(allowedName)
+  );
 };
 
 const filterMoviesBySelectedProviders = (
