@@ -301,6 +301,10 @@ const parseStoredList = (value: string | null, fallback: string[]) => {
   return parsed?.length ? parsed : fallback;
 };
 
+const areStringListsEqual = (left: string[], right: string[]) =>
+  left.length === right.length &&
+  left.every((value, index) => value === right[index]);
+
 const formatSelectedLabels = (
   selected: string[],
   options: { label: string; key?: string; code?: string }[]
@@ -875,30 +879,40 @@ export default function HomeScreen() {
       ]);
       const values = Object.fromEntries(entries);
 
-      setSelectedLanguages(
-        parseStoredList(
-          values[PREF_HOME_LANGUAGES_KEY],
-          values[PREF_LANGUAGE_KEY] ? [values[PREF_LANGUAGE_KEY]] : ['all']
-        )
+      const nextLanguages = parseStoredList(
+        values[PREF_HOME_LANGUAGES_KEY],
+        values[PREF_LANGUAGE_KEY] ? [values[PREF_LANGUAGE_KEY]] : ['all']
       );
-      setSelectedPlatforms(
-        parseStoredList(
-          values[PREF_HOME_PLATFORMS_KEY],
-          values[PREF_PLATFORM_KEY] ? [values[PREF_PLATFORM_KEY]] : ['all']
-        )
+      const nextPlatforms = parseStoredList(
+        values[PREF_HOME_PLATFORMS_KEY],
+        values[PREF_PLATFORM_KEY] ? [values[PREF_PLATFORM_KEY]] : ['all']
       );
-      setSelectedGenres(
-        parseStoredList(
-          values[PREF_HOME_GENRES_KEY],
-          values[PREF_GENRE_KEY] ? [values[PREF_GENRE_KEY]] : ['all']
-        )
+      const nextGenres = parseStoredList(
+        values[PREF_HOME_GENRES_KEY],
+        values[PREF_GENRE_KEY] ? [values[PREF_GENRE_KEY]] : ['all']
       );
-      if (values[PREF_RELEASE_MONTHS_KEY]) {
-        setReleaseWindowMonths(Number(values[PREF_RELEASE_MONTHS_KEY]) || 3);
-      }
-      setAlertsEnabled(values.alertsEnabled === 'true');
+      const nextReleaseWindowMonths = values[PREF_RELEASE_MONTHS_KEY]
+        ? Number(values[PREF_RELEASE_MONTHS_KEY]) || 3
+        : 3;
+      const nextAlertsEnabled = values.alertsEnabled === 'true';
+
+      setSelectedLanguages((current) =>
+        areStringListsEqual(current, nextLanguages) ? current : nextLanguages
+      );
+      setSelectedPlatforms((current) =>
+        areStringListsEqual(current, nextPlatforms) ? current : nextPlatforms
+      );
+      setSelectedGenres((current) =>
+        areStringListsEqual(current, nextGenres) ? current : nextGenres
+      );
+      setReleaseWindowMonths((current) =>
+        current === nextReleaseWindowMonths ? current : nextReleaseWindowMonths
+      );
+      setAlertsEnabled((current) =>
+        current === nextAlertsEnabled ? current : nextAlertsEnabled
+      );
     } finally {
-      setPreferencesLoaded(true);
+      setPreferencesLoaded((current) => (current ? current : true));
     }
   }, []);
 
