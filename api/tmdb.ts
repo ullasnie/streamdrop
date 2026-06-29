@@ -6,6 +6,7 @@ const ALLOWED_PATHS = [
   /^discover\/movie$/,
   /^movie\/\d+$/,
   /^movie\/\d+\/similar$/,
+  /^movie\/\d+\/videos$/,
   /^movie\/\d+\/watch\/providers$/,
   /^movie\/\d+\/release_dates$/,
 ];

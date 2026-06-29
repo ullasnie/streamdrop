@@ -4,12 +4,13 @@ import { useEffect, useState } from 'react';
 import {
   Alert,
   Image,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 import { emitWatchlistUpdated } from '../constants/watchlist-events';
@@ -17,6 +18,11 @@ import { trackEvent } from '../constants/analytics';
 import { getTmdb } from '../constants/tmdb-api';
 
 const DETAILS_POSTER_WIDTH = Platform.OS === 'web' ? 260 : 300;
+
+type Trailer = {
+  key: string;
+  name: string;
+};
 
 const formatDisplayDate = (value: string) => {
   if (!value) return '';
@@ -62,6 +68,25 @@ const cleanProviderList = (value: string[]) => {
   return primary.length ? primary : value.slice(0, 1);
 };
 
+const getBestTrailer = (videos: any[]): Trailer | null => {
+  const youtubeVideos = videos.filter(
+    (video) => video?.site === 'YouTube' && typeof video.key === 'string'
+  );
+
+  const officialTrailer =
+    youtubeVideos.find((video) => video.type === 'Trailer' && video.official) ||
+    youtubeVideos.find((video) => video.type === 'Trailer') ||
+    youtubeVideos.find((video) => video.type === 'Teaser' && video.official) ||
+    youtubeVideos.find((video) => video.type === 'Teaser');
+
+  if (!officialTrailer) return null;
+
+  return {
+    key: officialTrailer.key,
+    name: officialTrailer.name || 'Trailer',
+  };
+};
+
 export default function DetailsScreen() {
   const params = useLocalSearchParams();
   const initialRuntime = Number(params.runtime);
@@ -69,6 +94,7 @@ export default function DetailsScreen() {
     Number.isFinite(initialRuntime) && initialRuntime > 0 ? initialRuntime : null
   );
   const [isSaved, setIsSaved] = useState(false);
+  const [trailer, setTrailer] = useState<Trailer | null>(null);
 
   const id = Number(params.id);
   const title = String(params.title || '');
@@ -93,6 +119,22 @@ export default function DetailsScreen() {
     };
 
     fetchRuntime();
+  }, [id]);
+
+  useEffect(() => {
+    const fetchTrailer = async () => {
+      if (!Number.isFinite(id)) return;
+
+      try {
+        const res = await getTmdb(`movie/${id}/videos`);
+        setTrailer(getBestTrailer(res.data.results || []));
+      } catch (error) {
+        console.log('Trailer fetch error:', error);
+        setTrailer(null);
+      }
+    };
+
+    fetchTrailer();
   }, [id]);
 
   useEffect(() => {
@@ -152,6 +194,21 @@ export default function DetailsScreen() {
     }
   };
 
+  const openTrailer = async () => {
+    if (!trailer) return;
+
+    const youtubeAppUrl = `youtube://watch?v=${trailer.key}`;
+    const youtubeWebUrl = `https://www.youtube.com/watch?v=${trailer.key}`;
+
+    try {
+      const canOpenYoutube = await Linking.canOpenURL(youtubeAppUrl);
+      await Linking.openURL(canOpenYoutube ? youtubeAppUrl : youtubeWebUrl);
+    } catch (error) {
+      console.log('Trailer open error:', error);
+      await Linking.openURL(youtubeWebUrl);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
@@ -184,6 +241,16 @@ export default function DetailsScreen() {
               {isSaved ? 'Saved to Watchlist' : 'Save to Watchlist'}
             </Text>
           </TouchableOpacity>
+
+          {trailer ? (
+            <TouchableOpacity
+              style={styles.trailerButton}
+              onPress={openTrailer}
+              accessibilityRole="link"
+            >
+              <Text style={styles.trailerButtonText}>Watch Trailer</Text>
+            </TouchableOpacity>
+          ) : null}
 
           {(visibleProviders.length > 0 ||
             genres.length > 0 ||
@@ -263,7 +330,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#EF233C',
     padding: 12,
     borderRadius: 10,
-    marginVertical: 15,
+    marginTop: 15,
+    marginBottom: 10,
     alignItems: 'center',
   },
   buttonText: {
@@ -277,6 +345,18 @@ const styles = StyleSheet.create({
   },
   savedButtonText: {
     color: '#9CA3AF',
+  },
+  trailerButton: {
+    alignItems: 'center',
+    borderColor: '#EF233C',
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 15,
+    padding: 12,
+  },
+  trailerButtonText: {
+    color: '#EF233C',
+    fontWeight: '800',
   },
   quickMetaRow: {
     marginBottom: 12,
