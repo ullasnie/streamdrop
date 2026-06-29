@@ -194,11 +194,9 @@ export default function DetailsScreen() {
     }
   };
 
-  const openTrailer = async () => {
-    if (!trailer) return;
-
-    const youtubeAppUrl = `youtube://watch?v=${trailer.key}`;
-    const youtubeWebUrl = `https://www.youtube.com/watch?v=${trailer.key}`;
+  const launchTrailer = async (trailerKey: string) => {
+    const youtubeAppUrl = `youtube://watch?v=${trailerKey}`;
+    const youtubeWebUrl = `https://www.youtube.com/watch?v=${trailerKey}`;
 
     try {
       const canOpenYoutube = await Linking.canOpenURL(youtubeAppUrl);
@@ -207,6 +205,34 @@ export default function DetailsScreen() {
       console.log('Trailer open error:', error);
       await Linking.openURL(youtubeWebUrl);
     }
+  };
+
+  const openTrailer = () => {
+    if (!trailer) return;
+
+    if (Platform.OS === 'web') {
+      const confirmed =
+        typeof globalThis.confirm !== 'function' ||
+        globalThis.confirm('Open YouTube to watch this trailer?');
+
+      if (confirmed) void launchTrailer(trailer.key);
+      return;
+    }
+
+    Alert.alert(
+      'Leave StreamDrop?',
+      'The trailer will open in YouTube or your browser.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Leave App',
+          style: 'default',
+          onPress: () => {
+            void launchTrailer(trailer.key);
+          },
+        },
+      ]
+    );
   };
 
   return (
