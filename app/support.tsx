@@ -1,6 +1,8 @@
 import { router } from 'expo-router';
 import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { AppLogoLink } from '../components/app-logo-link';
+
 const SUPPORT_EMAIL = 'streamdrop.26@gmail.com';
 
 const topics = [
@@ -35,9 +37,12 @@ export default function SupportScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backText}>‹ Back</Text>
-        </Pressable>
+        <View style={styles.topBar}>
+          <Pressable style={styles.backButton} onPress={() => router.back()}>
+            <Text style={styles.backText}>‹ Back</Text>
+          </Pressable>
+          <AppLogoLink compact />
+        </View>
         <Text style={styles.title}>StreamDrop Support</Text>
         <Text style={styles.subtitle}>
           Help with releases, alerts, filters, and your watchlist.
@@ -82,9 +87,14 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     paddingBottom: 20,
   },
+  topBar: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 18,
+  },
   backButton: {
     alignSelf: 'flex-start',
-    marginBottom: 18,
     paddingVertical: 4,
   },
   backText: {

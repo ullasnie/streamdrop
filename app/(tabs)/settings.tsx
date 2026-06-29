@@ -18,6 +18,7 @@ import {
   ANALYTICS_ENABLED_KEY,
   trackEvent,
 } from '../../constants/analytics';
+import { AppLogoLink } from '../../components/app-logo-link';
 
 const PREF_LANGUAGE_KEY = 'preferredLanguageV3';
 const PREF_PLATFORM_KEY = 'preferredPlatform';
@@ -321,6 +322,7 @@ export default function SettingsScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <AppLogoLink style={styles.logo} />
       <Text style={styles.title}>Settings</Text>
 
       {Platform.OS !== 'web' && (
@@ -497,6 +499,10 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     marginHorizontal: 16,
     marginBottom: 18,
+  },
+  logo: {
+    marginHorizontal: 16,
+    marginBottom: 16,
   },
   panel: {
     borderWidth: 1,

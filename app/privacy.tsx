@@ -1,6 +1,8 @@
 import { router } from 'expo-router';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { AppLogoLink } from '../components/app-logo-link';
+
 const sections = [
   {
     title: 'Information stored on your device',
@@ -36,9 +38,12 @@ export default function PrivacyScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backText}>‹ Back</Text>
-        </Pressable>
+        <View style={styles.topBar}>
+          <Pressable style={styles.backButton} onPress={() => router.back()}>
+            <Text style={styles.backText}>‹ Back</Text>
+          </Pressable>
+          <AppLogoLink compact />
+        </View>
         <Text style={styles.title}>Privacy Policy</Text>
         <Text style={styles.updated}>Last updated June 24, 2026</Text>
       </View>
@@ -86,9 +91,14 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     paddingBottom: 20,
   },
+  topBar: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 18,
+  },
   backButton: {
     alignSelf: 'flex-start',
-    marginBottom: 18,
     paddingVertical: 4,
   },
   backText: {

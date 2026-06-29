@@ -16,6 +16,7 @@ import {
 import { emitWatchlistUpdated } from '../constants/watchlist-events';
 import { trackEvent } from '../constants/analytics';
 import { getTmdb } from '../constants/tmdb-api';
+import { AppLogoLink } from '../components/app-logo-link';
 
 const DETAILS_POSTER_WIDTH = Platform.OS === 'web' ? 260 : 300;
 
@@ -237,9 +238,12 @@ export default function DetailsScreen() {
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-        <Text style={styles.backText}>← Back</Text>
-      </TouchableOpacity>
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Text style={styles.backText}>← Back</Text>
+        </TouchableOpacity>
+        <AppLogoLink compact />
+      </View>
 
       <ScrollView style={styles.scroll}>
         {posterPath ? (
@@ -314,11 +318,17 @@ const styles = StyleSheet.create({
   scroll: {
     flex: 1,
   },
-  backButton: {
+  topBar: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     position: 'absolute',
     top: 55,
     left: 16,
+    right: 16,
     zIndex: 10,
+  },
+  backButton: {
     backgroundColor: 'rgba(0,0,0,0.65)',
     paddingHorizontal: 14,
     paddingVertical: 8,

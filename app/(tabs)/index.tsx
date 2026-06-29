@@ -17,6 +17,7 @@ import {
 
 import { getTmdb } from '../../constants/tmdb-api';
 import { trackEvent } from '../../constants/analytics';
+import { AppLogoLink } from '../../components/app-logo-link';
 
 type Movie = {
   id: number;
@@ -1222,10 +1223,7 @@ export default function HomeScreen() {
       onScrollBeginDrag={dismissActiveFilter}
       onTouchStart={dismissActiveFilter}
     >
-      <View style={styles.logo} onTouchStart={dismissActiveFilter}>
-        <Text style={styles.logoStream}>Stream</Text>
-        <Text style={styles.logoDrop}>Drop</Text>
-      </View>
+      <AppLogoLink style={styles.logo} onPress={dismissActiveFilter} />
 
       <View
         nativeID="streamdrop-home-search-bar"
@@ -1434,21 +1432,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0F1115', paddingTop: HOME_TOP_PADDING },
   content: { paddingBottom: HOME_BOTTOM_PADDING },
   logo: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
     marginLeft: 16,
     marginBottom: 16,
-  },
-  logoStream: {
-    color: '#FFFFFF',
-    fontSize: 34,
-    fontWeight: '900',
-  },
-  logoDrop: {
-    color: '#EF233C',
-    fontSize: 34,
-    fontStyle: 'italic',
-    fontWeight: '900',
   },
   section: { color: '#fff', margin: 16, fontWeight: '700' },
   sectionNote: {

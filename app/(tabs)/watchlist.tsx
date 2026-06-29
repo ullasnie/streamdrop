@@ -13,6 +13,7 @@ import {
 
 import { emitWatchlistUpdated } from '../../constants/watchlist-events';
 import { trackEvent } from '../../constants/analytics';
+import { AppLogoLink } from '../../components/app-logo-link';
 
 const SCREEN_TOP_PADDING = Platform.OS === 'web' ? 34 : 70;
 const POSTER_WIDTH = Platform.OS === 'web' ? 180 : 210;
@@ -96,6 +97,7 @@ export default function WatchlistScreen() {
 
   return (
     <View style={styles.container}>
+      <AppLogoLink style={styles.logo} />
       <Text style={styles.header}>Your Watchlist</Text>
 
       {movies.length === 0 ? (
@@ -149,7 +151,12 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 26,
     margin: 16,
+    marginTop: 0,
     fontWeight: '800',
+  },
+  logo: {
+    marginHorizontal: 16,
+    marginBottom: 16,
   },
   empty: {
     color: '#9CA3AF',
