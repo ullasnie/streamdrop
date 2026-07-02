@@ -18,6 +18,7 @@ import {
 import { getTmdb } from '../../constants/tmdb-api';
 import { trackEvent } from '../../constants/analytics';
 import { AppLogoLink } from '../../components/app-logo-link';
+import { parseMovieIntent } from '../../constants/ai-search';
 
 type Movie = {
   id: number;
@@ -524,6 +525,10 @@ export default function HomeScreen() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchError, setSearchError] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
+  const [aiQuery, setAiQuery] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiSummary, setAiSummary] = useState('');
+  const [aiError, setAiError] = useState('');
 
   const [selectedLanguages, setSelectedLanguages] = useState(['all']);
   const [selectedPlatforms, setSelectedPlatforms] = useState(['all']);
@@ -942,6 +947,46 @@ export default function HomeScreen() {
     fetchTopPicks(languageCodes, selectedGenres);
   };
 
+  const applyAiSearch = async () => {
+    const query = aiQuery.trim();
+    if (query.length < 3 || aiLoading) return;
+
+    dismissActiveFilter();
+    clearSearch();
+    setAiLoading(true);
+    setAiError('');
+
+    try {
+      const result = await parseMovieIntent(query);
+      const nextLanguages = result.filters.languages;
+      const nextPlatforms = result.filters.platforms;
+      const nextGenres = result.filters.genres;
+      const nextReleaseWindowMonths = result.filters.releaseWindowMonths;
+
+      setSelectedLanguages(nextLanguages);
+      setSelectedPlatforms(nextPlatforms);
+      setSelectedGenres(nextGenres);
+      setReleaseWindowMonths(nextReleaseWindowMonths);
+      setAiSummary(
+        result.source === 'openai'
+          ? result.summary
+          : `${result.summary} AI is not configured yet, so this used a local fallback.`
+      );
+
+      await AsyncStorage.multiSet([
+        [PREF_HOME_LANGUAGES_KEY, nextLanguages.join(',')],
+        [PREF_HOME_PLATFORMS_KEY, nextPlatforms.join(',')],
+        [PREF_HOME_GENRES_KEY, nextGenres.join(',')],
+        [PREF_RELEASE_MONTHS_KEY, String(nextReleaseWindowMonths)],
+      ]);
+      void trackEvent('filter_changed');
+    } catch {
+      setAiError('AI search is unavailable right now.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       void trackEvent('home_viewed');
@@ -1225,6 +1270,40 @@ export default function HomeScreen() {
     >
       <AppLogoLink style={styles.logo} onPress={dismissActiveFilter} />
 
+      <View style={styles.aiPanel} onTouchStart={keepActiveFilterOpen}>
+        <Text style={styles.aiEyebrow}>Post-MVP experiment</Text>
+        <Text style={styles.aiTitle}>Tell StreamDrop what you’re in the mood for</Text>
+        <View style={styles.aiInputRow}>
+          <TextInput
+            value={aiQuery}
+            onChangeText={(value) => {
+              setAiQuery(value);
+              setAiSummary('');
+              setAiError('');
+            }}
+            onSubmitEditing={applyAiSearch}
+            placeholder="Try “light Tamil comedy on Prime”"
+            placeholderTextColor="#6B7280"
+            returnKeyType="search"
+            style={styles.aiInput}
+          />
+          <Pressable
+            style={[
+              styles.aiButton,
+              (aiLoading || aiQuery.trim().length < 3) && styles.aiButtonDisabled,
+            ]}
+            onPress={applyAiSearch}
+            disabled={aiLoading || aiQuery.trim().length < 3}
+          >
+            <Text style={styles.aiButtonText}>
+              {aiLoading ? 'Finding…' : 'Find'}
+            </Text>
+          </Pressable>
+        </View>
+        {aiSummary ? <Text style={styles.aiSummary}>{aiSummary}</Text> : null}
+        {aiError ? <Text style={styles.aiError}>{aiError}</Text> : null}
+      </View>
+
       <View
         nativeID="streamdrop-home-search-bar"
         style={[styles.searchBar, searchFocused && styles.searchBarFocused]}
@@ -1434,6 +1513,72 @@ const styles = StyleSheet.create({
   logo: {
     marginLeft: 16,
     marginBottom: 16,
+  },
+  aiPanel: {
+    backgroundColor: '#12151C',
+    borderColor: '#242832',
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 12,
+    marginHorizontal: 16,
+    padding: 14,
+  },
+  aiEyebrow: {
+    color: '#EF233C',
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 0.6,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  aiTitle: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '900',
+    marginBottom: 12,
+  },
+  aiInputRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  aiInput: {
+    backgroundColor: '#0F1115',
+    borderColor: '#2A2E36',
+    borderRadius: 10,
+    borderWidth: 1,
+    color: '#FFFFFF',
+    flex: 1,
+    fontSize: 15,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === 'web' ? 12 : 10,
+  },
+  aiButton: {
+    alignItems: 'center',
+    backgroundColor: '#EF233C',
+    borderRadius: 10,
+    minWidth: 76,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  aiButtonDisabled: {
+    opacity: 0.5,
+  },
+  aiButtonText: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+  },
+  aiSummary: {
+    color: '#AEB4BE',
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 10,
+  },
+  aiError: {
+    color: '#EF233C',
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 10,
   },
   section: { color: '#fff', margin: 16, fontWeight: '700' },
   sectionNote: {
