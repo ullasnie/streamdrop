@@ -137,6 +137,12 @@ const HOME_BOTTOM_PADDING = Platform.OS === 'web' ? 112 : 120;
 const FEATURED_CARD_WIDTH = Platform.OS === 'web' ? 158 : 178;
 const FEATURED_POSTER_HEIGHT = Platform.OS === 'web' ? 226 : 266;
 const TMDB_OTT_RELEASE_TYPES = [4, 6];
+const AI_SEARCH_SUGGESTIONS = [
+  'Light Tamil comedy on Prime',
+  'Malayalam thriller on Netflix',
+  'Hindi family movie this weekend',
+  'Recent Telugu action on Hotstar',
+];
 let genreMapCache: Record<number, string> | null = null;
 const providerCache = new Map<string, string[]>();
 const releaseInfoCache = new Map<
@@ -947,12 +953,13 @@ export default function HomeScreen() {
     fetchTopPicks(languageCodes, selectedGenres);
   };
 
-  const applyAiSearch = async () => {
-    const query = aiQuery.trim();
+  const applyAiSearch = async (queryOverride?: string) => {
+    const query = (queryOverride || aiQuery).trim();
     if (query.length < 3 || aiLoading) return;
 
     dismissActiveFilter();
     clearSearch();
+    setAiQuery(query);
     setAiLoading(true);
     setAiError('');
 
@@ -985,6 +992,10 @@ export default function HomeScreen() {
     } finally {
       setAiLoading(false);
     }
+  };
+
+  const applyAiSuggestion = (suggestion: string) => {
+    void applyAiSearch(suggestion);
   };
 
   useFocusEffect(
@@ -1300,6 +1311,18 @@ export default function HomeScreen() {
             </Text>
           </Pressable>
         </View>
+        <View style={styles.aiSuggestionRow}>
+          {AI_SEARCH_SUGGESTIONS.map((suggestion) => (
+            <Pressable
+              key={suggestion}
+              style={styles.aiSuggestionChip}
+              onPress={() => applyAiSuggestion(suggestion)}
+              disabled={aiLoading}
+            >
+              <Text style={styles.aiSuggestionText}>{suggestion}</Text>
+            </Pressable>
+          ))}
+        </View>
         {aiSummary ? <Text style={styles.aiSummary}>{aiSummary}</Text> : null}
         {aiError ? <Text style={styles.aiError}>{aiError}</Text> : null}
       </View>
@@ -1567,6 +1590,24 @@ const styles = StyleSheet.create({
   aiButtonText: {
     color: '#FFFFFF',
     fontWeight: '900',
+  },
+  aiSuggestionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  aiSuggestionChip: {
+    borderColor: '#2A2E36',
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 11,
+    paddingVertical: 8,
+  },
+  aiSuggestionText: {
+    color: '#D1D5DB',
+    fontSize: 12,
+    fontWeight: '700',
   },
   aiSummary: {
     color: '#AEB4BE',
