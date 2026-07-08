@@ -22,7 +22,7 @@ const sections = [
   },
   {
     title: 'Feedback',
-    body: 'The in-app beta questions send only the selected answer as an aggregate count. No written response or personal information is attached. If you choose to email support, your email provider and the recipient will receive your email address and anything you include in the message.',
+    body: 'The in-app feedback questions send only the selected answer as an aggregate count. No written response or personal information is attached. If you choose to email support, your email provider and the recipient will receive your email address and anything you include in the message.',
   },
   {
     title: 'Data we do not request',

@@ -420,8 +420,7 @@ export default function SettingsScreen() {
           TMDB.
         </Text>
         <Text style={styles.complianceNote}>
-          TMDB data and images require attribution. Commercial use requires a
-          separate TMDB agreement before launch.
+          Movie data and images are provided by TMDB and used with attribution.
         </Text>
         <View style={styles.linkRow}>
           <Pressable
@@ -474,10 +473,10 @@ export default function SettingsScreen() {
         style={styles.feedbackButton}
         onPress={() => router.push('/feedback')}
       >
-        <Text style={styles.feedbackText}>Beta Feedback</Text>
+        <Text style={styles.feedbackText}>Share Feedback</Text>
       </Pressable>
       <Text style={styles.feedbackHint}>
-        Answer three quick questions in the app. Each answer saves immediately.
+        Answer three quick questions to help improve StreamDrop.
       </Text>
 
     </ScrollView>

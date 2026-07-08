@@ -26,7 +26,7 @@ If enabled, StreamDrop may schedule a weekly Friday reminder on your device. You
 
 ## Feedback
 
-The in-app beta questions send only the selected answer as an aggregate count. No written response or personal information is attached.
+The in-app feedback questions send only the selected answer as an aggregate count. No written response or personal information is attached.
 
 If you send detailed feedback by email, your email app may share your email address and any details you include in the message.
 
@@ -36,4 +36,4 @@ StreamDrop does not currently ask for your name, password, payment information, 
 
 ## Contact
 
-For privacy or beta questions, contact streamdrop.26@gmail.com.
+For privacy questions, contact streamdrop.26@gmail.com.

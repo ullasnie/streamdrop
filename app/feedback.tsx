@@ -18,7 +18,7 @@ import {
 import { AppLogoLink } from '../components/app-logo-link';
 
 const SUPPORT_EMAIL = 'streamdrop.26@gmail.com';
-const FEEDBACK_STORAGE_KEY = 'betaFeedbackAnswersV1';
+const FEEDBACK_STORAGE_KEY = 'feedbackAnswersV1';
 
 type Answers = Record<string, string>;
 
@@ -57,7 +57,7 @@ const questions: {
 ];
 
 const emailSupport = () => {
-  const subject = encodeURIComponent('StreamDrop beta feedback');
+  const subject = encodeURIComponent('StreamDrop feedback');
   const body = encodeURIComponent(
     'What happened?\n\nMovie title, if relevant:\n\nCountry:\n\niPhone model:\n\niOS version:\n'
   );
@@ -111,9 +111,9 @@ export default function FeedbackScreen() {
         <AppLogoLink compact />
       </View>
 
-      <Text style={styles.title}>Beta Feedback</Text>
+      <Text style={styles.title}>Share Feedback</Text>
       <Text style={styles.intro}>
-        Three quick answers help shape StreamDrop. Each tap is saved
+        Three quick answers help improve StreamDrop. Each tap is saved
         immediately as an anonymous count—no text or personal details.
       </Text>
 

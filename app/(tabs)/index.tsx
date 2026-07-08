@@ -1401,7 +1401,7 @@ export default function HomeScreen() {
           {releaseSectionTitle}
         </Text>
         <Text style={styles.sectionNote}>
-          Beta note: Showing a curated sample from TMDB, not every matching release.
+          Showing a curated list from TMDB based on your filters.
         </Text>
 
         {loading && !errorMessage ? (

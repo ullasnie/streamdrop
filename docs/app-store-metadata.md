@@ -13,7 +13,7 @@ Prepared for iPhone version 1.0.
 - Copyright: `© 2026 Ullas Udayakumar`
 - Support URL: `https://streamdrop-eight.vercel.app/support`
 - Privacy policy URL: `https://streamdrop-eight.vercel.app/privacy`
-- Marketing URL: Leave blank for MVP.
+- Marketing URL: Leave blank for version 1.0.
 
 ## Promotional Text
 
@@ -36,9 +36,9 @@ Features:
 - Check release information, genres, ratings, runtime, and a short overview.
 - Save movies to a watchlist stored on your iPhone.
 - Enable an optional Friday reminder for fresh weekend picks.
-- Share quick, anonymous beta feedback directly in the app.
+- Share quick, anonymous feedback directly in the app.
 
-Movie data and images are provided by TMDB. Streaming availability and release
+Movie data and images are provided by TMDB and used with attribution. Streaming availability and release
 information may vary by country and may not include every matching title.
 
 This product uses the TMDB API but is not endorsed or certified by TMDB.
@@ -80,7 +80,7 @@ Suggested review path:
 4. Open a movie and tap Save to Watchlist.
 5. Open Watchlist to confirm the movie was saved locally.
 6. Open Settings to review Friday alerts, anonymous usage-count controls,
-   support, privacy, beta feedback, and TMDB credits.
+   support, privacy, feedback, and TMDB credits.
 
 Friday alerts use local iOS notifications. Movie data, images, release
 information, and provider information come from TMDB through a StreamDrop
@@ -110,7 +110,7 @@ Declare `Product Interaction` under `Analytics`.
 
 StreamDrop sends allow-listed count-only events for screen views, movie opens,
 filter changes, search use, refresh taps, watchlist actions, alert changes, and
-fixed multiple-choice beta answers. Events use one shared aggregate identifier.
+fixed multiple-choice feedback answers. Events use one shared aggregate identifier.
 They do not include search text, movie titles, email addresses, advertising
 identifiers, device identifiers, or precise location. GeoIP processing is
 disabled.
@@ -124,7 +124,7 @@ The following remain on the iPhone and are not sent as user data:
 - Release-window preference
 - Notification preference
 - Analytics opt-out preference
-- Whether each beta question has already been answered
+- Whether each feedback question has already been answered
 
 ### Support Email
 
@@ -159,5 +159,5 @@ StreamDrop uses standard HTTPS networking and declares:
 - Initial price: Free
 - Release method recommendation: Manual release after approval
 - macOS availability: Disable iPhone app availability on Apple silicon Macs for
-  the MVP unless it has been tested there.
-- Apple Vision Pro availability: Disable for the MVP unless tested.
+  version 1.0 unless it has been tested there.
+- Apple Vision Pro availability: Disable for version 1.0 unless tested.

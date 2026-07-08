@@ -15,7 +15,7 @@ ready for public App Store review.
   - Search returns movie results.
   - Movie details open and Save to Watchlist works.
   - Watchlist persists after closing/reopening the app.
-  - Settings opens Privacy, Support, Beta Feedback, and TMDB credit links.
+  - Settings opens Privacy, Support, Feedback, and TMDB credit links.
   - Friday alert permission flow behaves normally.
   - Analytics opt-out can be turned off.
 
@@ -70,9 +70,9 @@ Features:
 - Check release information, genres, ratings, runtime, and a short overview.
 - Save movies to a watchlist stored on your iPhone.
 - Enable an optional Friday reminder for fresh weekend picks.
-- Share quick, anonymous beta feedback directly in the app.
+- Share quick, anonymous feedback directly in the app.
 
-Movie data and images are provided by TMDB. Streaming availability and release information may vary by country and may not include every matching title.
+Movie data and images are provided by TMDB and used with attribution. Streaming availability and release information may vary by country and may not include every matching title.
 
 This product uses the TMDB API but is not endorsed or certified by TMDB.
 ```
