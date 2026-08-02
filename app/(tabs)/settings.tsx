@@ -568,44 +568,53 @@ export default function SettingsScreen() {
         >
           <View style={styles.preferenceModalBackdrop}>
             <View style={styles.settingPanel}>
-          <View style={styles.settingPanelHeader}>
-            <Text style={styles.settingPanelTitle}>
-              {activeSetting === 'platform'
-                ? 'Streaming'
-                : activeSetting === 'content'
-                  ? 'Content types'
-                : activeSetting === 'window'
-                  ? 'Release Window'
-                  : activeSetting
-                    ? activeSetting[0].toUpperCase() + activeSetting.slice(1)
-                    : 'Preferences'}
-            </Text>
-            <Pressable onPress={() => setActiveSetting(null)}>
-              <Text style={styles.settingPanelClose}>Done</Text>
-            </Pressable>
-          </View>
-          <Text style={styles.settingPanelHint}>Tap options to add or remove them.</Text>
-          <View style={styles.settingOptionGrid}>
-            {settingOptions.map((item) => (
-              <Pressable
-                key={item.key}
-                style={[
-                  styles.chip,
-                  item.selected && styles.chipSelected,
-                ]}
-                onPress={item.onPress}
-              >
-                <Text
-                  style={[
-                    styles.chipText,
-                    item.selected && styles.chipTextSelected,
-                  ]}
-                >
-                  {item.label}
+              <View style={styles.settingPanelHeader}>
+                <Text style={styles.settingPanelTitle}>
+                  {activeSetting === 'platform'
+                    ? 'Streaming'
+                    : activeSetting === 'content'
+                      ? 'Content types'
+                    : activeSetting === 'window'
+                      ? 'Release Window'
+                      : activeSetting
+                        ? activeSetting[0].toUpperCase() + activeSetting.slice(1)
+                        : 'Preferences'}
                 </Text>
-              </Pressable>
-            ))}
-          </View>
+                <Pressable
+                  accessibilityLabel="Close preferences"
+                  hitSlop={12}
+                  onPress={() => setActiveSetting(null)}
+                >
+                  <Text style={styles.settingPanelClose}>Done</Text>
+                </Pressable>
+              </View>
+              <Text style={styles.settingPanelHint}>Tap options to add or remove them.</Text>
+              <ScrollView
+                contentContainerStyle={styles.settingOptionGrid}
+                nestedScrollEnabled
+                showsVerticalScrollIndicator
+                style={styles.settingOptionsScroll}
+              >
+                {settingOptions.map((item) => (
+                  <Pressable
+                    key={item.key}
+                    style={[
+                      styles.chip,
+                      item.selected && styles.chipSelected,
+                    ]}
+                    onPress={item.onPress}
+                  >
+                    <Text
+                      style={[
+                        styles.chipText,
+                        item.selected && styles.chipTextSelected,
+                      ]}
+                    >
+                      {item.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
             </View>
           </View>
         </Modal>
@@ -952,8 +961,8 @@ const styles = StyleSheet.create({
     borderColor: '#242832',
     borderRadius: 8,
     borderWidth: 1,
-    marginHorizontal: 16,
-    marginBottom: 22,
+    maxHeight: '90%',
+    width: '100%',
     padding: 12,
   },
   settingPanelHint: {
@@ -982,6 +991,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
+    paddingBottom: 4,
+  },
+  settingOptionsScroll: {
+    flexShrink: 1,
   },
   chip: {
     alignItems: 'center',
