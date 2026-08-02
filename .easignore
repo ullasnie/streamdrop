@@ -6,3 +6,6 @@ yarn-debug.log
 yarn-error.log
 .DS_Store
 .env*.local
+app-store-screenshots
+marketing
+scripts/create_marketing_story.py
