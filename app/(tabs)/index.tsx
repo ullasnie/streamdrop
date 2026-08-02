@@ -1119,6 +1119,12 @@ export default function HomeScreen() {
         ) {
           setHomeTourPromptVisible(false);
           setHomeTourStep(Number(activeStep));
+          if (activeStep === '0') {
+            setTourSeriesRevealed(false);
+            setTimeout(() => {
+              homeScrollViewRef.current?.scrollTo({ y: 0, animated: false });
+            }, 0);
+          }
         }
       });
     }, [loadContentTypePreference, loadPreferences])
