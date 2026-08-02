@@ -1547,7 +1547,7 @@ export default function HomeScreen() {
                 onPress={clearSearch}
                 style={styles.clearSearchButton}
               >
-                <Text style={styles.clearSearchText}>Clear all</Text>
+                <Text style={styles.clearSearchText}>×</Text>
               </Pressable>
             )}
           </View>
@@ -1943,19 +1943,22 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   aiInputWithClear: {
-    paddingRight: 62,
+    paddingRight: 42,
   },
   clearSearchButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
+    alignItems: 'center',
+    height: 36,
+    justifyContent: 'center',
     position: 'absolute',
-    right: 5,
-    top: Platform.OS === 'web' ? 5 : 3,
+    right: 4,
+    top: Platform.OS === 'web' ? 4 : 2,
+    width: 36,
   },
   clearSearchText: {
     color: '#EF233C',
-    fontSize: 12,
-    fontWeight: '800',
+    fontSize: 24,
+    fontWeight: '700',
+    lineHeight: 26,
   },
   aiButton: {
     alignItems: 'center',
