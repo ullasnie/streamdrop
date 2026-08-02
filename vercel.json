@@ -8,6 +8,9 @@
     },
     "api/tmdb.ts": {
       "maxDuration": 10
+    },
+    "api/home-feed.ts": {
+      "maxDuration": 30
     }
   },
   "rewrites": [

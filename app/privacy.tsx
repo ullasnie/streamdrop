@@ -9,7 +9,7 @@ const sections = [
     body: 'StreamDrop stores your selected languages, streaming services, genres, release window, notification preference, and watchlist on your device. StreamDrop does not currently require an account.',
   },
   {
-    title: 'Movie data and network requests',
+    title: 'Movie and series data and network requests',
     body: 'StreamDrop retrieves movie metadata, images, ratings, release dates, and streaming-provider information from TMDB through a StreamDrop server hosted by Vercel. TMDB and Vercel may process standard network information, such as your IP address and request details, to provide and secure their services.',
   },
   {

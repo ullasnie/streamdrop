@@ -17,6 +17,7 @@ import { emitWatchlistUpdated } from '../constants/watchlist-events';
 import { trackEvent } from '../constants/analytics';
 import { getTmdb } from '../constants/tmdb-api';
 import { AppLogoLink } from '../components/app-logo-link';
+import { AmbientBackground } from '../components/ambient-background';
 
 const DETAILS_POSTER_WIDTH = Platform.OS === 'web' ? 260 : 300;
 
@@ -96,38 +97,67 @@ export default function DetailsScreen() {
   );
   const [isSaved, setIsSaved] = useState(false);
   const [trailer, setTrailer] = useState<Trailer | null>(null);
+  const [providers, setProviders] = useState<string[]>(() =>
+    parseListParam(params.providers)
+  );
 
   const id = Number(params.id);
+  const mediaType = String(params.mediaType || 'movie');
+  const providerRegion = String(params.region || '');
   const title = String(params.title || '');
   const releaseDate = String(params.releaseDate || '');
   const posterPath = String(params.posterPath || '');
   const overview = String(params.overview || '');
-  const providers = parseListParam(params.providers);
   const genres = parseListParam(params.genres);
   const certification = String(params.certification || '');
+  const rating = Number(params.rating);
   const visibleProviders = cleanProviderList(providers);
+
+  useEffect(() => {
+    const fetchProviders = async () => {
+      if (!Number.isFinite(id) || (!providerRegion && providers.length > 0)) {
+        return;
+      }
+
+      try {
+        const res = await getTmdb(`${mediaType}/${id}/watch/providers`);
+        const region = providerRegion || 'US';
+        const providerNames = (
+          res.data.results?.[region]?.flatrate || []
+        ).map((provider: { provider_name: string }) => provider.provider_name);
+
+        if (providerNames.length > 0) setProviders(providerNames);
+      } catch (error) {
+        console.log('Provider fetch error:', error);
+      }
+    };
+
+    void fetchProviders();
+    // Initial provider params are only a fallback while authoritative data loads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, mediaType, providerRegion]);
 
   useEffect(() => {
     const fetchRuntime = async () => {
       if (!Number.isFinite(id)) return;
 
       try {
-        const res = await getTmdb(`movie/${id}`);
-        setRuntime(res.data.runtime || null);
+        const res = await getTmdb(`${mediaType}/${id}`);
+        setRuntime(res.data.runtime || res.data.episode_run_time?.[0] || null);
       } catch (error) {
         console.log('Runtime fetch error:', error);
       }
     };
 
     fetchRuntime();
-  }, [id]);
+  }, [id, mediaType]);
 
   useEffect(() => {
     const fetchTrailer = async () => {
       if (!Number.isFinite(id)) return;
 
       try {
-        const res = await getTmdb(`movie/${id}/videos`);
+        const res = await getTmdb(`${mediaType}/${id}/videos`);
         setTrailer(getBestTrailer(res.data.results || []));
       } catch (error) {
         console.log('Trailer fetch error:', error);
@@ -136,7 +166,7 @@ export default function DetailsScreen() {
     };
 
     fetchTrailer();
-  }, [id]);
+  }, [id, mediaType]);
 
   useEffect(() => {
     const checkSavedStatus = async () => {
@@ -175,6 +205,8 @@ export default function DetailsScreen() {
         providers,
         genres,
         certification,
+        rating: Number.isFinite(rating) && rating > 0 ? rating : undefined,
+        mediaType,
         runtime,
       };
 
@@ -238,6 +270,7 @@ export default function DetailsScreen() {
 
   return (
     <View style={styles.container}>
+      <AmbientBackground posterPath={posterPath} />
       <View style={styles.topBar}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Text style={styles.backText}>← Back</Text>
@@ -261,6 +294,7 @@ export default function DetailsScreen() {
           <Text style={styles.date}>
             {formatDisplayDate(releaseDate) || 'Coming soon'}
           </Text>
+          <Text style={styles.mediaType}>{mediaType === 'tv' ? 'Series' : 'Movie'}</Text>
 
           <TouchableOpacity
             style={[styles.button, isSaved && styles.savedButton]}
@@ -293,6 +327,9 @@ export default function DetailsScreen() {
                   formatRuntime(runtime),
                   genres[0],
                   certification,
+                  Number.isFinite(rating) && rating > 0
+                    ? `⭐ ${rating.toFixed(1)}`
+                    : '',
                 ]
                   .filter(Boolean)
                   .join(' · ')}
@@ -346,11 +383,12 @@ const styles = StyleSheet.create({
   },
   posterWrap: {
     alignItems: 'center',
-    backgroundColor: '#0B0D12',
+    backgroundColor: 'rgba(11, 13, 18, 0.52)',
     paddingBottom: 16,
     paddingTop: 86,
   },
   content: {
+    backgroundColor: 'rgba(15, 17, 21, 0.9)',
     padding: 20,
   },
   title: {
@@ -361,6 +399,12 @@ const styles = StyleSheet.create({
   date: {
     color: '#EF233C',
     marginVertical: 10,
+  },
+  mediaType: {
+    color: '#9CA3AF',
+    fontSize: 13,
+    fontWeight: '800',
+    marginBottom: 12,
   },
   button: {
     backgroundColor: '#EF233C',

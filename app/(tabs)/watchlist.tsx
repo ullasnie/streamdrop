@@ -14,6 +14,7 @@ import {
 import { emitWatchlistUpdated } from '../../constants/watchlist-events';
 import { trackEvent } from '../../constants/analytics';
 import { AppLogoLink } from '../../components/app-logo-link';
+import { AmbientBackground } from '../../components/ambient-background';
 
 const SCREEN_TOP_PADDING = Platform.OS === 'web' ? 34 : 70;
 const POSTER_WIDTH = Platform.OS === 'web' ? 180 : 210;
@@ -27,6 +28,8 @@ type SavedMovie = {
   providers?: string[];
   genres?: string[];
   certification?: string;
+  rating?: number;
+  mediaType?: 'movie' | 'tv';
   runtime?: number | null;
 };
 
@@ -83,6 +86,8 @@ export default function WatchlistScreen() {
         providers: JSON.stringify(movie.providers || []),
         genres: JSON.stringify(movie.genres || []),
         certification: movie.certification || '',
+        rating: movie.rating ? String(movie.rating) : '',
+        mediaType: movie.mediaType || 'movie',
         runtime: movie.runtime ? String(movie.runtime) : '',
       },
     });
@@ -97,6 +102,7 @@ export default function WatchlistScreen() {
 
   return (
     <View style={styles.container}>
+      <AmbientBackground posterPath={movies[0]?.posterPath} />
       <AppLogoLink style={styles.logo} />
       <Text style={styles.header}>Your Watchlist</Text>
 
@@ -146,6 +152,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0F1115',
     paddingTop: SCREEN_TOP_PADDING,
+    position: 'relative',
   },
   header: {
     color: '#FFFFFF',

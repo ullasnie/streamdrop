@@ -14,6 +14,9 @@ export type AnalyticsEvent =
   | 'watchlist_removed'
   | 'search_used'
   | 'refresh_tapped'
+  | 'not_interested_weekend'
+  | 'not_interested_recent_movies'
+  | 'not_interested_new_series'
   | 'filter_changed'
   | 'alerts_changed';
 

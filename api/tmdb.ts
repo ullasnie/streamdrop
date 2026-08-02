@@ -2,13 +2,24 @@ const TMDB_API_BASE_URL = 'https://api.themoviedb.org/3';
 
 const ALLOWED_PATHS = [
   /^genre\/movie\/list$/,
+  /^watch\/providers\/movie$/,
   /^search\/movie$/,
+  /^search\/multi$/,
   /^discover\/movie$/,
   /^movie\/\d+$/,
   /^movie\/\d+\/similar$/,
   /^movie\/\d+\/videos$/,
   /^movie\/\d+\/watch\/providers$/,
   /^movie\/\d+\/release_dates$/,
+  /^genre\/tv\/list$/,
+  /^watch\/providers\/tv$/,
+  /^search\/tv$/,
+  /^discover\/tv$/,
+  /^tv\/\d+$/,
+  /^tv\/\d+\/similar$/,
+  /^tv\/\d+\/videos$/,
+  /^tv\/\d+\/watch\/providers$/,
+  /^tv\/\d+\/content_ratings$/,
 ];
 
 export default async function handler(request: any, response: any) {
